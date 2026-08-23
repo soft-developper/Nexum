@@ -1,12 +1,12 @@
 // ============================================================
-// Bridge.xyz liquidation-address operations (Phase 5 - off-ramp).
+// Bridge.xyz liquidation-address operations (Phase 5 — off-ramp).
 //
 // A Liquidation Address is a PERMANENT on-chain address that auto-converts any
 // crypto sent to it into fiat and forwards it to a registered External Account.
 // This is the off-ramp: user sends USDC (on Base) to the liquidation address;
 // Bridge drains it to the user's bank.
 //
-// Shapes taken verbatim from Bridge's official docs - the offramp guide
+// Shapes taken verbatim from Bridge's official docs — the offramp guide
 // (apidocs.bridge.xyz/get-started/guides/move-money/offramp_liquidation) and
 // the OpenAPI for POST /v0/customers/{customerID}/liquidation_addresses:
 //   Request (fiat destination):
@@ -26,7 +26,7 @@
 //            in_review | undeliverable | returned | refunded | error | canceled.
 //
 // ⚠ SANDBOX: like virtual accounts, the Bridge sandbox does not move real money
-// and won't fire drain webhooks - creating a liquidation address proves the
+// and won't fire drain webhooks — creating a liquidation address proves the
 // request/response SCHEMA; a real drain is a production test. The drain state
 // machine is covered by unit tests and lights up on a real send.
 // ============================================================
@@ -39,7 +39,7 @@ export type LiquidationSourceCurrency = 'usdc' | 'usdt' | 'usdb' | 'pyusd' | 'eu
 /** Source chain. We off-ramp from Base (Circle wallet's USDC on Base). */
 export type LiquidationSourceChain = string
 
-/** Rail-specific reference fields - exactly one applies per destination rail. */
+/** Rail-specific reference fields — exactly one applies per destination rail. */
 export interface DestinationReferences {
   destinationAchReference?:  string   // ACH:  <=10 chars, A-Za-z0-9 + spaces
   destinationWireMessage?:   string   // Wire: <=256 chars (Fedwire 4x35)
@@ -55,7 +55,7 @@ export interface CreateLiquidationAddressParams {
   destinationPaymentRail: string                   // 'ach' | 'wire' | 'sepa' | 'spei'
   destinationCurrency: string                      // 'usd' | 'eur' | 'mxn'
   references?:         DestinationReferences
-  /** Where Bridge returns funds if a drain fails - the user's own wallet. */
+  /** Where Bridge returns funds if a drain fails — the user's own wallet. */
   returnAddress:       string
   /** '0' at launch. Base-100 percentage as a string per Bridge's API. */
   developerFeePercent?: string
@@ -86,7 +86,7 @@ export interface LiquidationAddressResponse {
  * Create a liquidation address pointing at a registered external bank account.
  * `idempotencyKey` must be stable per (account, currency) so a retry can't mint
  * a second address. `returnAddress` is REQUIRED here (the docs flag it as "very
- * important") - we always pass the user's own wallet so a failed drain returns
+ * important") — we always pass the user's own wallet so a failed drain returns
  * to them rather than being stranded.
  */
 export async function createLiquidationAddress(
@@ -165,7 +165,7 @@ export interface Drain {
 }
 
 /**
- * Fetch the drain history for a liquidation address - the off-ramp equivalent
+ * Fetch the drain history for a liquidation address — the off-ramp equivalent
  * of a virtual account's /history. This is what the status tracker polls.
  * Bridge returns a bare array (not a { count, data } envelope), so we normalize.
  */

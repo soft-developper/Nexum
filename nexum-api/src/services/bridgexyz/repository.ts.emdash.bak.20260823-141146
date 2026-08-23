@@ -1,5 +1,5 @@
 // ============================================================
-// ramp_customers repository - DB access for Bridge.xyz customer/KYC records.
+// ramp_customers repository — DB access for Bridge.xyz customer/KYC records.
 // One row per Nexum account. Mirrors the db.run(sql`…`) + parseRows pattern
 // used across the API.
 // ============================================================
@@ -90,7 +90,7 @@ export async function updateRampCustomerStatus(params: {
 }
 
 // ══════════════════════════════════════════════════════════
-// Phase 2 - corridors + virtual accounts
+// Phase 2 — corridors + virtual accounts
 // ══════════════════════════════════════════════════════════
 
 export interface RampCorridorRow {
@@ -200,7 +200,7 @@ export async function updateVirtualAccountRow(params: {
 }
 
 // ══════════════════════════════════════════════════════════
-// Phase 3 - webhook events (dedupe/audit) + deposit-event mirror
+// Phase 3 — webhook events (dedupe/audit) + deposit-event mirror
 // ══════════════════════════════════════════════════════════
 
 /**
@@ -215,7 +215,7 @@ export async function recordWebhookEvent(params: {
   eventCreatedAt?: string | null
   raw?:           string | null
 }): Promise<boolean> {
-  // Dedupe: if we've already stored this event_id, it's a redelivery - skip.
+  // Dedupe: if we've already stored this event_id, it's a redelivery — skip.
   const existing = await db.run(sql`
     SELECT 1 FROM ramp_webhook_events WHERE event_id = ${params.eventId} LIMIT 1`)
   if (parseRows(existing).length > 0) return false
@@ -289,7 +289,7 @@ export async function getDepositEventsByVirtualAccount(
 }
 
 // ══════════════════════════════════════════════════════════
-// Phase 4 #3 - deposit email notifications (lookup + dedup)
+// Phase 4 #3 — deposit email notifications (lookup + dedup)
 // ══════════════════════════════════════════════════════════
 
 export interface AccountContact {
@@ -331,7 +331,7 @@ export async function claimDepositNotification(params: {
   kind:             'landed' | 'returned' | 'returned_failed'
 }): Promise<boolean> {
   // Guard against NULL deposit/va slipping past the UNIQUE constraint (SQLite
-  // treats NULLs as distinct) - without a deposit id we can't dedup safely,
+  // treats NULLs as distinct) — without a deposit id we can't dedup safely,
   // so refuse to claim (no email) rather than risk spamming.
   if (!params.virtualAccountId || !params.depositId) return false
   // Pre-check handles the common (redelivery) case.
@@ -351,7 +351,7 @@ export async function claimDepositNotification(params: {
 }
 
 // ══════════════════════════════════════════════════════════
-// Phase 5 - off-ramp: external accounts + liquidation addresses
+// Phase 5 — off-ramp: external accounts + liquidation addresses
 // ══════════════════════════════════════════════════════════
 
 /** Enabled off-ramp corridors, in display order. */
@@ -520,7 +520,7 @@ export async function updateLiquidationAddressStatus(params: {
 }
 
 // ══════════════════════════════════════════════════════════
-// Phase 5 Part 4 - off-ramp drain events + payout notifications
+// Phase 5 Part 4 — off-ramp drain events + payout notifications
 // ══════════════════════════════════════════════════════════
 
 /** Fetch a liquidation-address row by Bridge's liquidation_address_id. */

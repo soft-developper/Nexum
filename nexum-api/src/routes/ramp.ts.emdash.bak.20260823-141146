@@ -1,17 +1,17 @@
 // ============================================================
-// /ramp - Bridge.xyz fiat on/off-ramp routes.
+// /ramp — Bridge.xyz fiat on/off-ramp routes.
 //
 // User-facing name is "On/Off-ramp"; the route is /ramp (NOT /bridge, which is
 // the CCTP cross-chain bridge).
 //
 // Phase 0 (read-only):
-//   GET  /ramp/health    - config + live reachability (the sandbox smoke test)
-//   GET  /ramp/corridors - the data-driven supported-corridor list
+//   GET  /ramp/health    — config + live reachability (the sandbox smoke test)
+//   GET  /ramp/corridors — the data-driven supported-corridor list
 // Phase 1 (customer + hosted KYC):
-//   GET  /ramp/customer         - this account's ramp/KYC record (or null)
-//   POST /ramp/customer         - lazily create a hosted KYC link (individual|business)
-//   GET  /ramp/customer/refresh - poll Bridge for latest KYC/ToS status, mirror + return
-//   POST /ramp/customer/simulate-approve - SANDBOX ONLY: force KYC approved for testing
+//   GET  /ramp/customer         — this account's ramp/KYC record (or null)
+//   POST /ramp/customer         — lazily create a hosted KYC link (individual|business)
+//   GET  /ramp/customer/refresh — poll Bridge for latest KYC/ToS status, mirror + return
+//   POST /ramp/customer/simulate-approve — SANDBOX ONLY: force KYC approved for testing
 // ============================================================
 
 import { Router } from 'express'
@@ -78,7 +78,7 @@ router.get('/health', async (_req, res) => {
   }
 })
 
-// GET /ramp/corridors - enabled on-ramp corridors, from the DB table.
+// GET /ramp/corridors — enabled on-ramp corridors, from the DB table.
 router.get('/corridors', async (_req, res) => {
   try {
     const rows = await listEnabledOnrampCorridors()
@@ -93,7 +93,7 @@ router.get('/corridors', async (_req, res) => {
   }
 })
 
-// GET /ramp/endorsements - which currencies this account is approved to deposit.
+// GET /ramp/endorsements — which currencies this account is approved to deposit.
 // Bridge gates each currency behind a per-customer endorsement (base=USD,
 // sepa=EUR, spei=MXN, pix=BRL, faster_payments=GBP, cop=COP). We map the
 // customer's endorsements onto currencies so the UI can enable only the ready
@@ -147,7 +147,7 @@ function safeParse(s: string): unknown {
   try { return JSON.parse(s) } catch { return [] }
 }
 
-// GET /ramp/customer - the current account's record, or { exists: false }.
+// GET /ramp/customer — the current account's record, or { exists: false }.
 router.get('/customer', requireAccount, async (req, res) => {
   const account = (req as any).account
   try {
@@ -159,7 +159,7 @@ router.get('/customer', requireAccount, async (req, res) => {
   }
 })
 
-// POST /ramp/customer - lazily create a hosted KYC link for this account.
+// POST /ramp/customer — lazily create a hosted KYC link for this account.
 // Body: { type?: 'individual' | 'business', fullName: string }
 // email is taken from the signed-in account. Idempotent per account: if a
 // record already exists we return it rather than creating a second link.
@@ -202,7 +202,7 @@ router.post('/customer', requireAccount, async (req, res) => {
   }
 })
 
-// GET /ramp/customer/refresh - poll Bridge for latest status, mirror, return.
+// GET /ramp/customer/refresh — poll Bridge for latest status, mirror, return.
 // Used while the user completes the hosted flow in another tab.
 router.get('/customer/refresh', requireAccount, async (req, res) => {
   const account = (req as any).account
@@ -227,7 +227,7 @@ router.get('/customer/refresh', requireAccount, async (req, res) => {
   }
 })
 
-// POST /ramp/customer/simulate-approve - SANDBOX ONLY.
+// POST /ramp/customer/simulate-approve — SANDBOX ONLY.
 // Forces the customer to KYC-approved via Bridge's sandbox endpoint so the
 // gate can be tested without a real Persona verification. Refused in prod.
 router.post('/customer/simulate-approve', requireAccount, async (req, res) => {
@@ -239,7 +239,7 @@ router.post('/customer/simulate-approve', requireAccount, async (req, res) => {
     const row = await getRampCustomerByAccount(account.id)
     if (!row?.customer_id) {
       return res.status(400).json({
-        error: 'No Bridge customer id yet - the KYC link must be started first.',
+        error: 'No Bridge customer id yet — the KYC link must be started first.',
       })
     }
     await simulateKycApproval(row.customer_id, `ramp-sim-${account.id}-${Date.now()}`)
@@ -289,12 +289,12 @@ async function requireVerifiedCustomer(accountId: string): Promise<
     return { ok: false, status: 409, error: 'Your verification isn’t approved yet' }
   }
   if (!customer.customer_id) {
-    return { ok: false, status: 409, error: 'Your verification is still finalizing - try again shortly' }
+    return { ok: false, status: 409, error: 'Your verification is still finalizing — try again shortly' }
   }
   return { ok: true, customer }
 }
 
-// GET /ramp/virtual-accounts - this account's deposit rails.
+// GET /ramp/virtual-accounts — this account's deposit rails.
 router.get('/virtual-accounts', requireAccount, async (req, res) => {
   const account = (req as any).account
   try {
@@ -305,7 +305,7 @@ router.get('/virtual-accounts', requireAccount, async (req, res) => {
   }
 })
 
-// POST /ramp/virtual-account - lazily create (or return) the deposit rail for a
+// POST /ramp/virtual-account — lazily create (or return) the deposit rail for a
 // currency. Body: { currency: string }. Mirrors the lazy ramp_customers create:
 // one virtual account per account+currency, idempotent per that pair.
 router.post('/virtual-account', requireAccount, async (req, res) => {
@@ -338,7 +338,7 @@ router.post('/virtual-account', requireAccount, async (req, res) => {
     const destinationAddress = account.walletAddress
     if (!destinationAddress) {
       return res.status(409).json({
-        error: 'Your wallet isn’t ready yet - please try again in a moment',
+        error: 'Your wallet isn’t ready yet — please try again in a moment',
       })
     }
 
@@ -380,10 +380,10 @@ router.post('/virtual-account', requireAccount, async (req, res) => {
   }
 })
 
-// GET /ramp/virtual-account/:currency/activity - deposit -> delivered events.
+// GET /ramp/virtual-account/:currency/activity — deposit -> delivered events.
 // Polled by the status tracker. MERGES two sources:
-//   • Bridge's /history poll - GROUND TRUTH, always authoritative.
-//   • ramp_deposit_events   - the webhook mirror, which may be fresher (a
+//   • Bridge's /history poll — GROUND TRUTH, always authoritative.
+//   • ramp_deposit_events   — the webhook mirror, which may be fresher (a
 //     webhook can land before the next 15s poll). Used only to fill in event
 //     types the poll hasn't returned yet, so the stepper advances instantly.
 // If Bridge's /history call fails, we still return the mirror so the tracker
@@ -411,7 +411,7 @@ router.get('/virtual-account/:currency/activity', requireAccount, async (req, re
 
     // Webhook mirror (may be fresher). Reconcile: anything only the mirror knows
     // gets written back into the mirror as 'poll' source when the poll catches
-    // up - but for the response we just union by event type.
+    // up — but for the response we just union by event type.
     let mirrorEvents: any[] = []
     try {
       const rows = await getDepositEventsByVirtualAccount(row.virtual_account_id)
@@ -506,7 +506,7 @@ function liqAddrToClient(row: RampLiquidationAddressRow) {
   }
 }
 
-// GET /ramp/offramp/corridors - enabled off-ramp corridors, from the DB table.
+// GET /ramp/offramp/corridors — enabled off-ramp corridors, from the DB table.
 router.get('/offramp/corridors', async (_req, res) => {
   try {
     const rows = await listEnabledOfframpCorridors()
@@ -521,7 +521,7 @@ router.get('/offramp/corridors', async (_req, res) => {
   }
 })
 
-// GET /ramp/external-account - this account's registered bank accounts.
+// GET /ramp/external-account — this account's registered bank accounts.
 router.get('/external-account', requireAccount, async (req, res) => {
   const account = (req as any).account
   try {
@@ -532,7 +532,7 @@ router.get('/external-account', requireAccount, async (req, res) => {
   }
 })
 
-// POST /ramp/external-account - register (or return) a bank account for a
+// POST /ramp/external-account — register (or return) a bank account for a
 // currency. Idempotent per (account, currency): one external account each,
 // mirroring the lazy virtual-account create. We forward the bank details to
 // Bridge and persist ONLY Bridge's opaque id + bank_name + last_4.
@@ -654,7 +654,7 @@ router.post('/external-account', requireAccount, async (req, res) => {
   }
 })
 
-// GET /ramp/liquidation-address - this account's off-ramp addresses.
+// GET /ramp/liquidation-address — this account's off-ramp addresses.
 router.get('/liquidation-address', requireAccount, async (req, res) => {
   const account = (req as any).account
   try {
@@ -665,7 +665,7 @@ router.get('/liquidation-address', requireAccount, async (req, res) => {
   }
 })
 
-// POST /ramp/liquidation-address - lazily create (or return) the off-ramp
+// POST /ramp/liquidation-address — lazily create (or return) the off-ramp
 // address for a currency. Requires a registered external account first. Body:
 // { currency }. Idempotent per (account, currency).
 //
@@ -708,7 +708,7 @@ router.post('/liquidation-address', requireAccount, async (req, res) => {
     const returnAddress = account.walletAddress
     if (!returnAddress) {
       return res.status(409).json({
-        error: 'Your wallet isn’t ready yet - please try again in a moment',
+        error: 'Your wallet isn’t ready yet — please try again in a moment',
       })
     }
 
@@ -763,7 +763,7 @@ router.post('/liquidation-address', requireAccount, async (req, res) => {
   }
 })
 
-// GET /ramp/liquidation-address/:currency/drains - off-ramp status tracker.
+// GET /ramp/liquidation-address/:currency/drains — off-ramp status tracker.
 // Polls Bridge's drain history (ground truth). Returns the normalized drain
 // list; tolerant of a Bridge failure (returns empty with a flag rather than
 // erroring) so the tracker degrades gracefully.
@@ -787,8 +787,8 @@ router.get('/liquidation-address/:currency/drains', requireAccount, async (req, 
     }
 
     // Merge in webhook-mirrored drain events (Phase 5 Part 4). The Bridge poll
-    // stays ground truth; the mirror fills gaps between polls and - when the
-    // poll fails - still surfaces the latest known state. Dedupe by drain id +
+    // stays ground truth; the mirror fills gaps between polls and — when the
+    // poll fails — still surfaces the latest known state. Dedupe by drain id +
     // state, preferring the poll's richer object when both exist.
     let mirrored: any[] = []
     try {

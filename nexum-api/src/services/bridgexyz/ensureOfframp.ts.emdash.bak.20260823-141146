@@ -2,7 +2,7 @@
 // Boot-time self-heal for the off-ramp schema + corridor seed.
 //
 // WHY THIS EXISTS: migration 0024's corridor INSERT did not execute on the
-// production Turso DB even though the migration was recorded as applied - the
+// production Turso DB even though the migration was recorded as applied — the
 // same "recorded-but-not-run" gap seen with the transactions.from_chain column
 // (0022/0023). Rather than trust the migration runner, we ensure the off-ramp
 // tables and the six corridor rows exist every time the API boots.
@@ -113,7 +113,7 @@ export async function ensureOfframpSchema(): Promise<void> {
     const count = rows?.rows?.[0]?.c ?? rows?.[0]?.c ?? '?'
     console.log(`[Ramp] \u2705 off-ramp schema ensured (${count} off-ramp corridors present)`)
   } catch (err: any) {
-    // Never let a seed failure crash boot - log and continue.
+    // Never let a seed failure crash boot — log and continue.
     console.error('[Ramp] \u26a0 ensureOfframpSchema failed:', err?.message ?? err)
   }
 }

@@ -1,8 +1,8 @@
 // ============================================================
 // Bridge.xyz customer + KYC-link operations (Phase 1).
 //
-// We use Bridge's HOSTED onboarding (KYC Links / Persona) - NOT direct API
-// customer creation - so Nexum never collects or transmits SSNs or ID-document
+// We use Bridge's HOSTED onboarding (KYC Links / Persona) — NOT direct API
+// customer creation — so Nexum never collects or transmits SSNs or ID-document
 // images. We call POST /v0/kyc_links to get a Persona kyc_link + a Bridge
 // tos_link, hand those to the user, and poll GET /v0/kyc_links/:id for status.
 // ============================================================
@@ -66,7 +66,7 @@ export async function getKycLink(kycLinkId: string): Promise<KycLinkResponse> {
 }
 
 /**
- * SANDBOX ONLY - force a customer to KYC-approved so the flow can be tested
+ * SANDBOX ONLY — force a customer to KYC-approved so the flow can be tested
  * end-to-end without doing a real Persona verification. No-op signature in
  * production (Bridge rejects it), so callers must gate on sandbox.
  */

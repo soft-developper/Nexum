@@ -770,11 +770,11 @@ This summary is sent weekly to super admins. All data is from the platform datab
 }
 
 // ─────────────────────────────────────────────────────────────
-// Ramp on-ramp deposit notifications (Bridge.xyz) - Phase 4 #3
+// Ramp on-ramp deposit notifications (Bridge.xyz) — Phase 4 #3
 // ─────────────────────────────────────────────────────────────
 
 // A deposit landed as USDC. amountUsdc is the delivered amount; sentAmount /
-// sentCcy are the original fiat (optional - shown when known).
+// sentCcy are the original fiat (optional — shown when known).
 export function depositLandedEmail(params: {
   displayName:  string
   amountUsdc:   string
@@ -782,7 +782,7 @@ export function depositLandedEmail(params: {
   sentCcy?:     string
   txHash?:      string
 }) {
-  const subject     = `✅ Your deposit landed - ${params.amountUsdc} USDC`
+  const subject     = `✅ Your deposit landed — ${params.amountUsdc} USDC`
   const previewText = `${params.amountUsdc} USDC is now in your wallet.`
 
   const content = `
@@ -800,7 +800,7 @@ ${infoCard([
   ...(params.sentAmount && params.sentCcy ? [{
     label: 'You sent', value: `${params.sentAmount} ${params.sentCcy.toUpperCase()}`
   }] : []),
-  { label: 'Fees',        value: `0.00 - 0% at launch` },
+  { label: 'Fees',        value: `0.00 — 0% at launch` },
   { label: 'You received', value: `${params.amountUsdc} USDC` },
   ...(params.txHash ? [{
     label: 'On-chain proof',
@@ -830,7 +830,7 @@ export function depositReturnedEmail(params: {
     ? `⚠️ Action needed on your deposit`
     : `Your deposit was returned`
   const previewText = params.failed
-    ? `We couldn’t complete the return - please contact support.`
+    ? `We couldn’t complete the return — please contact support.`
     : `Your deposit was returned to the sending account.`
 
   const headColor = params.failed ? DANGER_COLOR : WARNING_COLOR
@@ -855,14 +855,14 @@ ${infoCard([
   ...(params.sentAmount && params.sentCcy ? [{
     label: 'Deposit amount', value: `${params.sentAmount} ${params.sentCcy.toUpperCase()}`
   }] : []),
-  { label: 'Status', value: params.failed ? 'Return failed - support notified' : 'Returned to sender' },
+  { label: 'Status', value: params.failed ? 'Return failed — support notified' : 'Returned to sender' },
   ...(params.reason ? [{ label: 'Reason', value: params.reason }] : []),
 ])}
 
 ${ctaButton(params.failed ? 'Contact support' : 'Try again', params.failed ? `${APP_URL}/support` : `${APP_URL}/ramp`)}
 
 <p style="margin:16px 0 0;color:${TEXT_SECONDARY};font-size:12px;line-height:1.5;">
-  If you have questions about this deposit, just reply - we’re here to help.
+  If you have questions about this deposit, just reply — we’re here to help.
 </p>`
 
   return { subject, html: baseLayout(content, { previewText }), previewText }
@@ -870,7 +870,7 @@ ${ctaButton(params.failed ? 'Contact support' : 'Try again', params.failed ? `${
 
 // ── Off-ramp payout emails (Phase 5 Part 4) ─────────────────────────────────
 
-// A withdrawal's fiat payout completed - money is on its way to / arrived at the
+// A withdrawal's fiat payout completed — money is on its way to / arrived at the
 // user's bank. Mirrors depositLandedEmail but for the USDC→fiat direction.
 export function payoutPaidEmail(params: {
   displayName:  string
@@ -880,7 +880,7 @@ export function payoutPaidEmail(params: {
   reference?:   string          // trace / IMAD, when present
 }) {
   const ccy         = (params.currency ?? '').toUpperCase()
-  const subject     = `✅ Your withdrawal is on its way${ccy ? ` - ${params.amount} ${ccy}` : ''}`
+  const subject     = `✅ Your withdrawal is on its way${ccy ? ` — ${params.amount} ${ccy}` : ''}`
   const previewText = `Your withdrawal has been sent to your bank.`
 
   const content = `
@@ -898,7 +898,7 @@ export function payoutPaidEmail(params: {
 ${infoCard([
   { label: 'Amount',  value: ccy ? `${params.amount} ${ccy}` : `${params.amount}` },
   ...(params.rail ? [{ label: 'Method', value: params.rail.toUpperCase() }] : []),
-  { label: 'Fees',    value: `0.00 - 0% at launch` },
+  { label: 'Fees',    value: `0.00 — 0% at launch` },
   ...(params.reference ? [{ label: 'Reference', value: `<span style="font-family:monospace;font-size:12px;">${params.reference}</span>` }] : []),
 ])}
 
@@ -925,7 +925,7 @@ export function payoutReturnedEmail(params: {
     ? `⚠️ Action needed on your withdrawal`
     : `Your withdrawal was returned`
   const previewText = params.failed
-    ? `We couldn’t complete your withdrawal - please contact support.`
+    ? `We couldn’t complete your withdrawal — please contact support.`
     : `Your withdrawal was returned to your wallet.`
 
   const headColor = params.failed ? DANGER_COLOR : WARNING_COLOR
@@ -948,14 +948,14 @@ export function payoutReturnedEmail(params: {
 
 ${infoCard([
   ...(params.amount ? [{ label: 'Amount', value: ccy ? `${params.amount} ${ccy}` : `${params.amount}` }] : []),
-  { label: 'Status', value: params.failed ? 'Return failed - support notified' : 'Returned to your wallet' },
+  { label: 'Status', value: params.failed ? 'Return failed — support notified' : 'Returned to your wallet' },
   ...(params.reason ? [{ label: 'Reason', value: params.reason }] : []),
 ])}
 
 ${ctaButton(params.failed ? 'Contact support' : 'Try again', params.failed ? `${APP_URL}/support` : `${APP_URL}/ramp`)}
 
 <p style="margin:16px 0 0;color:${TEXT_SECONDARY};font-size:12px;line-height:1.5;">
-  If you have questions about this withdrawal, just reply - we’re here to help.
+  If you have questions about this withdrawal, just reply — we’re here to help.
 </p>`
 
   return { subject, html: baseLayout(content, { previewText }), previewText }

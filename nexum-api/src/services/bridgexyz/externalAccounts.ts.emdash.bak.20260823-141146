@@ -1,14 +1,14 @@
 // ============================================================
-// Bridge.xyz external-account operations (Phase 5 - off-ramp).
+// Bridge.xyz external-account operations (Phase 5 — off-ramp).
 //
-// An External Account is the customer's registered bank account - the fiat
+// An External Account is the customer's registered bank account — the fiat
 // DESTINATION for an off-ramp. A Liquidation Address (see liquidationAddresses.ts)
 // points at one of these. The field set VARIES by currency, exactly as Bridge's
 // docs specify (apidocs.bridge.xyz/.../offramp_liquidation):
 //   • usd  -> account_type 'us',    account:{ routing_number, account_number, checking_or_savings }
 //   • eur  -> account_type 'iban',  iban:{ account_number(IBAN), bic, country }
 //   • mxn  -> account_type 'clabe', clabe:{ account_number }
-// We NEVER persist the raw account/routing/IBAN numbers (see repository.ts) -
+// We NEVER persist the raw account/routing/IBAN numbers (see repository.ts) —
 // only Bridge's returned external_account id + bank_name + last_4 for display.
 //
 // PRIVACY: Nexum forwards these bank details to Bridge to register the account
@@ -55,7 +55,7 @@ export interface ExternalAccountAddress {
   country:       string   // ISO 3166-1 alpha-3, e.g. 'USA'
 }
 
-/** Currency-specific account detail - exactly one of these per call. */
+/** Currency-specific account detail — exactly one of these per call. */
 export type ExternalAccountDetail =
   | { kind: 'us';    routingNumber: string; accountNumber: string; checkingOrSavings: 'checking' | 'savings' }
   | { kind: 'iban';  ibanNumber: string;    bic: string;           country: string }
@@ -79,7 +79,7 @@ export interface CreateExternalAccountParams {
 /**
  * Map our normalized params onto Bridge's currency-branched request body. The
  * branch is driven by `detail.kind`, which the route derives from the corridor
- * currency - never guessed here.
+ * currency — never guessed here.
  */
 function buildBody(p: CreateExternalAccountParams): Record<string, unknown> {
   const base: Record<string, unknown> = {

@@ -1,5 +1,5 @@
 // ============================================================
-// Bridge.xyz virtual-account operations (Phase 2 - on-ramp happy path).
+// Bridge.xyz virtual-account operations (Phase 2 — on-ramp happy path).
 //
 // A virtual account is a PERMANENT, reusable fiat deposit address in the
 // customer's own name. Fiat sent to it is converted to USDC and delivered
@@ -10,14 +10,14 @@
 //   - Create:   POST /v0/customers/{customerId}/virtual_accounts
 //               body { source:{currency}, destination:{payment_rail,currency,address}, developer_fee_percent }
 //               NOTE: destination.payment_rail is the CHAIN ('base'), and
-//               source takes ONLY { currency } - the fiat rail (ach_push/wire)
+//               source takes ONLY { currency } — the fiat rail (ach_push/wire)
 //               is the depositor's choice, returned to us in
 //               source_deposit_instructions.payment_rails[].
 //   - Activity: GET /v0/customers/{customerId}/virtual_accounts/{vaId}/history
 //               -> { count, data: VirtualAccountEvent[] }
 //
 // IMPORTANT (sandbox): Bridge sandbox does NOT move money and fires no
-// payments webhooks - virtual accounts come back with dummy deposit
+// payments webhooks — virtual accounts come back with dummy deposit
 // instructions and /history is empty/dummy. Sandbox proves request/response
 // SCHEMA only; a real deposit is a production test. There is NO
 // simulate-deposit endpoint for virtual accounts (that endpoint belongs to
@@ -30,7 +30,7 @@ import { bridgeFetch } from './client'
 export type BridgeChainRail = string
 
 /**
- * source_deposit_instructions - the fiat details the customer deposits to.
+ * source_deposit_instructions — the fiat details the customer deposits to.
  * The field set VARIES by currency (USD has routing/account numbers, EUR has
  * iban/bic, MXN has clabe, BRL has br_code, GBP has account_number/sort_code),
  * so this is intentionally open. We store the whole object and let the UI pick

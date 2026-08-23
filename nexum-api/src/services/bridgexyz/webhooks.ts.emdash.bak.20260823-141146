@@ -14,11 +14,11 @@
 //
 // ⚠ The digest is effectively DOUBLE-HASHED: we compute a SHA256 digest, then
 // hand THAT 32-byte digest to an RSA-SHA256 verifier (which hashes its input a
-// second time). This matches Bridge's own TS/Python/Java/Go samples - they all
+// second time). This matches Bridge's own TS/Python/Java/Go samples — they all
 // pass the pre-computed digest to the verifier. Passing the raw signedPayload
 // instead would hash only once and every signature would fail.
 //
-// ⚠ MUST verify against the RAW request bytes, not a re-serialized object -
+// ⚠ MUST verify against the RAW request bytes, not a re-serialized object —
 // key order / spacing / unicode escaping would differ. index.ts already
 // captures req.rawBody via the express.json({ verify }) hook.
 // ============================================================
@@ -66,7 +66,7 @@ function parseSignatureHeader(header: string): ParsedHeader | null {
     const eq = part.indexOf('=')
     if (eq === -1) continue
     const key = part.slice(0, eq).trim()
-    const val = part.slice(eq + 1).trim() // split on FIRST '=' - base64 '=' padding is safe
+    const val = part.slice(eq + 1).trim() // split on FIRST '=' — base64 '=' padding is safe
     if (key === 't') timestamp = val
     else if (key === 'v0') signature = val
   }

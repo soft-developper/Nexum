@@ -291,7 +291,7 @@ webhookRouter.post('/flutterwave', async (req: any, res) => {
 // (captured by the express.json({ verify }) hook in index.ts), dedupes on
 // event_id, and mirrors virtual-account activity into ramp_deposit_events so
 // the /ramp tracker updates instantly. The 15s /history poll remains ground
-// truth and reconciles anything missed - this handler is an optimisation.
+// truth and reconciles anything missed — this handler is an optimisation.
 //
 // Responses: 200 on accept/dupe (so Bridge stops retrying), 400 on bad/old
 // signature (Bridge retries with a fresh timestamp per its replay guidance).
@@ -306,7 +306,7 @@ webhookRouter.post('/bridgexyz', async (req: any, res) => {
     return res.status(503).json({ error: 'Webhook not configured' })
   }
 
-  // Verify signature first - never parse/trust an unverified body.
+  // Verify signature first — never parse/trust an unverified body.
   try {
     verifyWebhookSignature(rawBody, sigHeader, bridgeWebhookPublicKey())
   } catch (err: any) {
@@ -319,7 +319,7 @@ webhookRouter.post('/bridgexyz', async (req: any, res) => {
   }
 
   // Parse, dedupe, mirror. Any handling error still returns 200 (signature was
-  // valid - retrying won't help) but is logged.
+  // valid — retrying won't help) but is logged.
   try {
     const event = parseWebhookEvent(rawBody)
 

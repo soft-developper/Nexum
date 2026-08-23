@@ -1,11 +1,11 @@
 // ============================================================
-// Send reconciler - settles pending non-Arc sends by their REAL on-chain
+// Send reconciler — settles pending non-Arc sends by their REAL on-chain
 // receipt, never by an optimistic guess.
 //
 // WHY: a Circle transfer can surface a txHash before it is confirmed on-chain.
 // The send page must NOT mark such a send "settled" just because a hash exists
 // (it could still revert). Instead, non-Arc sends that aren't yet confirmed are
-// left "pending", and this backstop - mirroring startTransferReconciler - polls
+// left "pending", and this backstop — mirroring startTransferReconciler — polls
 // each chain's own RPC for the transaction receipt and settles only on ground
 // truth: receipt.status === 'success' -> settled, 'reverted' -> failed, no
 // receipt yet -> leave pending and retry next tick.
@@ -69,7 +69,7 @@ function parseRows(res: any): any[] {
 }
 
 export function startSendReconciler() {
-  console.log('[SendReconciler] \u2705 Started - settling pending non-Arc sends by on-chain receipt every 2 minutes')
+  console.log('[SendReconciler] \u2705 Started — settling pending non-Arc sends by on-chain receipt every 2 minutes')
   cron.schedule('*/2 * * * *', reconcile)
   setTimeout(reconcile, 20_000) // shortly after boot too
 }
@@ -102,7 +102,7 @@ async function reconcile() {
 
       const rpc = rpcUrlForKey(chain)
       const cid = chainIdFor(chain)
-      if (!rpc || !cid) continue // unknown/unconfigured chain - leave pending
+      if (!rpc || !cid) continue // unknown/unconfigured chain — leave pending
 
       let client = clients.get(chain)
       if (!client) {
@@ -119,10 +119,10 @@ async function reconcile() {
           console.log(`[SendReconciler] settled ${id} (${chain}) via on-chain receipt`)
         } else if (receipt.status === 'reverted') {
           await db.run(sql`UPDATE transactions SET status='failed' WHERE id=${id} AND status='pending'`)
-          console.log(`[SendReconciler] failed ${id} (${chain}) - reverted on-chain`)
+          console.log(`[SendReconciler] failed ${id} (${chain}) — reverted on-chain`)
         }
       } catch {
-        // No receipt yet (still mining) or transient RPC error - leave pending,
+        // No receipt yet (still mining) or transient RPC error — leave pending,
         // retry next tick. Never settle without a receipt.
       }
     }

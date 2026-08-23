@@ -247,7 +247,7 @@ function RampInner() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Direction switcher - on-ramp (add money) vs off-ramp (withdraw). The two are
+// Direction switcher — on-ramp (add money) vs off-ramp (withdraw). The two are
 // mirror images: on-ramp brings fiat in as USDC; off-ramp sends USDC out as
 // fiat. The toggle makes that symmetry the organizing idea of the page.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -329,7 +329,7 @@ function OfframpFlow() {
     const existingLiq  = findLiquidationAddress(currency)
     const existingBank = findExternalAccount(currency)
     if (existingLiq)  { setLiqAddr(existingLiq); setStage('withdraw'); return }
-    if (existingBank) { setStage('bank'); return } // bank set, address not yet - bank step will fast-forward
+    if (existingBank) { setStage('bank'); return } // bank set, address not yet — bank step will fast-forward
     setStage('bank')
   }
 
@@ -699,7 +699,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
   const [txHash, setTxHash]   = useState<string | null>(null)
   // 'idle' | 'confirming' (hash exists, not yet confirmed on-chain) | 'confirmed'
   // (Circle reported COMPLETE/CONFIRMED). We never claim final success on a bare
-  // unconfirmed hash - the drain tracker below is the downstream on-chain truth.
+  // unconfirmed hash — the drain tracker below is the downstream on-chain truth.
   const [phase, setPhase]     = useState<'idle' | 'confirming' | 'confirmed'>('idle')
   const [err, setErr]         = useState<string | null>(null)
 
@@ -711,7 +711,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
     if (!valid) { setErr('Enter an amount of at least 1 USDC.'); return }
     setSending(true); setPhase('idle'); setStep(null)
     try {
-      // The exact same Circle-signed send path as multichain send - USDC leaves
+      // The exact same Circle-signed send path as multichain send — USDC leaves
       // the user's wallet on Base and lands at the Bridge liquidation address,
       // which auto-converts it to fiat and pays out to their bank.
       const result = await sendUsdc(
@@ -733,7 +733,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
       }
     } catch (e: any) {
       if (e instanceof UserCancelledError) { setErr('You cancelled the withdrawal. Nothing was sent.') }
-      else if (e instanceof NeedsReauthError) { setErr('Your session expired - please sign in again to withdraw.') }
+      else if (e instanceof NeedsReauthError) { setErr('Your session expired — please sign in again to withdraw.') }
       else { setErr(e?.message ?? 'Could not complete the withdrawal.') }
     } finally {
       setSending(false); setStep(null)
@@ -755,7 +755,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
             <p className="text-sm text-app-muted">
               {confirmed
                 ? `${amount} USDC is on its way to your bank. Track it below.`
-                : `${amount} USDC was submitted. We’re confirming it on-chain before it heads to your bank - this is tracked below.`}
+                : `${amount} USDC was submitted. We’re confirming it on-chain before it heads to your bank — this is tracked below.`}
             </p>
           </div>
         </div>
@@ -824,7 +824,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
   )
 }
 
-// ── Drain (payout) status tracker - mirrors the deposit tracker ────────────
+// ── Drain (payout) status tracker — mirrors the deposit tracker ────────────
 
 const DRAIN_STEPS = [
   { key: 'sent',      label: 'USDC sent',            match: [] as string[] },
@@ -1277,7 +1277,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 
 // Ordered happy-path lifecycle. Bridge event types map onto these stages.
 // Edge states (in_review / refund* / microdeposit) are handled separately
-// below - they are NOT steps, they change the whole status of the deposit.
+// below — they are NOT steps, they change the whole status of the deposit.
 const TRACKER_STEPS = [
   { key: 'awaiting',  label: 'Waiting for your deposit', match: [] as string[] },
   { key: 'received',  label: 'Funds received',           match: ['funds_received'] },
@@ -1285,7 +1285,7 @@ const TRACKER_STEPS = [
   { key: 'delivered', label: 'USDC delivered',           match: ['payment_processed'] },
 ]
 
-// Event types that describe the ACCOUNT, not a deposit's progress - ignored.
+// Event types that describe the ACCOUNT, not a deposit's progress — ignored.
 const LIFECYCLE_TYPES = ['account_update', 'deactivation', 'activation']
 
 function stageIndexFor(events: RampActivityEvent[]): number {
@@ -1309,7 +1309,7 @@ type Disposition =
 
 function dispositionFor(events: RampActivityEvent[]): Disposition {
   const has = (t: string) => events.some(e => e.type === t)
-  // A completed delivery always wins - even if an earlier review cleared.
+  // A completed delivery always wins — even if an earlier review cleared.
   if (has('payment_processed')) return { kind: 'normal' }
   if (has('refund') || has('refund_in_flight') || has('refund_failed')) {
     const failed = has('refund_failed')
@@ -1495,7 +1495,7 @@ function DepositTracker({ currency }: { currency: string }) {
         <StatusBanner
           tone="info"
           title="Verification deposit received"
-          body="This was a small verification deposit (under $1), not a full deposit - it won’t be converted to USDC on its own. Send your full amount to complete an on-ramp."
+          body="This was a small verification deposit (under $1), not a full deposit — it won’t be converted to USDC on its own. Send your full amount to complete an on-ramp."
         />
       ) : (
         <>
@@ -1503,7 +1503,7 @@ function DepositTracker({ currency }: { currency: string }) {
             <StatusBanner
               tone="review"
               title="Deposit under review"
-              body="Your deposit arrived and is going through a routine compliance check. This usually clears on its own - no action needed. We’ll update the status here."
+              body="Your deposit arrived and is going through a routine compliance check. This usually clears on its own — no action needed. We’ll update the status here."
             />
           )}
           <ol className="relative space-y-4">
@@ -1533,7 +1533,7 @@ function DepositTracker({ currency }: { currency: string }) {
                     </p>
                     {current && i === 0 && (
                       <p className="text-[11px] text-app-muted">
-                        Send {currency.toUpperCase()} using the details above - this updates on its own.
+                        Send {currency.toUpperCase()} using the details above — this updates on its own.
                       </p>
                     )}
                   </div>

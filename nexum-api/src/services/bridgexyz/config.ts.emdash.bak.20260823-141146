@@ -1,16 +1,16 @@
 // ============================================================
-// Bridge.xyz static configuration - landing chain + supported corridors.
+// Bridge.xyz static configuration — landing chain + supported corridors.
 //
 // These are DATA, not logic. Bridge supports no African fiat yet (only the
 // currencies below); when Bridge ships new rails, add a row here (later, a DB
-// table) - no code change elsewhere. The FX feed (open.er-api.com, ~160
+// table) — no code change elsewhere. The FX feed (open.er-api.com, ~160
 // currencies) is IRRELEVANT to what Bridge can settle; this list is the only
 // source of truth for ramp corridors.
 // ============================================================
 
 /*
   On-ramped USDC is delivered to the user's Circle wallet on this chain.
-  Bridge does NOT deliver to Arc, so we use Base - supported by both Bridge
+  Bridge does NOT deliver to Arc, so we use Base — supported by both Bridge
   and Circle Wallets, and Nexum's fallback home chain. Configurable via env
   for the eventual mainnet move, default Base testnet.
 */
@@ -38,7 +38,7 @@ export interface RampCorridor {
 /*
   ⚠ RUNTIME SOURCE OF TRUTH IS THE ramp_corridors DB TABLE (migration 0019),
   read via repository.listEnabledOnrampCorridors(). This array is only the
-  documented SEED for that table - keep the two in sync when adding a currency.
+  documented SEED for that table — keep the two in sync when adding a currency.
 
   ONE ROW PER CURRENCY, not per fiat rail. Bridge's virtual-account `source`
   object takes only { currency }; the depositor chooses the rail (ACH vs wire,
@@ -47,7 +47,7 @@ export interface RampCorridor {
   a single corridor/virtual account, not two.
 
   Seeded from Bridge's supported on-ramp currencies (Aug 2026). NO African
-  currencies yet by design - Bridge doesn't support them; add NGN later as one
+  currencies yet by design — Bridge doesn't support them; add NGN later as one
   table row (and one line here), no other code change.
 */
 export const BRIDGE_CORRIDORS: RampCorridor[] = [

@@ -2,7 +2,7 @@
 // Boot-time self-heal for the transactions.from_chain column.
 //
 // WHY: migrations 0022 AND 0023 were both recorded as applied on the prod
-// Turso DB, but the ALTER TABLE never actually ran - the from_chain column is
+// Turso DB, but the ALTER TABLE never actually ran — the from_chain column is
 // absent (confirmed: GET /transactions returns 11 rows, none carrying a
 // from_chain key; SELECT * would expose it if the column existed). This is the
 // same "recorded-but-not-run" Turso gap seen with the off-ramp corridor seed.
@@ -54,7 +54,7 @@ export async function ensureTransactionsSchema(): Promise<void> {
       }
     }
   } catch (err: any) {
-    // Never crash boot over this - the insert path degrades gracefully anyway.
+    // Never crash boot over this — the insert path degrades gracefully anyway.
     console.error('[Tx] \u26a0 ensureTransactionsSchema failed:', err?.message ?? err)
   }
 }

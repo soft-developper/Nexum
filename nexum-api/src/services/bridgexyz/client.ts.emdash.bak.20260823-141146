@@ -10,7 +10,7 @@
 // NOTE ON NAMING: the word "bridge" already means the CCTP cross-chain bridge
 // in this codebase (routes/bridge.ts, services/bridge/, /bridge nav). This
 // module is Bridge.xyz the FIAT RAMP. User-facing it is called "On/Off-ramp"
-// and lives at /ramp - never "bridge" - to avoid confusion with CCTP.
+// and lives at /ramp — never "bridge" — to avoid confusion with CCTP.
 //
 // Phase 0 scope: config gate + a typed fetch helper + a read-only ping so we
 // can prove the sandbox key works from Render. No customer creation, no DB,
@@ -53,7 +53,7 @@ interface BridgeFetchOptions {
   /**
    * Idempotency key for mutating calls. Bridge REQUIRES one on every POST.
    * Omit for GETs. If a mutating call is made without one, we generate a UUID
-   * - but callers that need safe retries should pass their OWN stored key.
+   * — but callers that need safe retries should pass their OWN stored key.
    */
   idempotencyKey?: string
   /** Extra query params. */
@@ -125,7 +125,7 @@ export async function bridgeFetch<T = unknown>(
  */
 export async function bridgePing(): Promise<{ ok: true; reachable: true }> {
   // The customers list is the simplest authenticated read. We ignore the
-  // payload entirely - a 2xx is all we need to confirm the key works.
+  // payload entirely — a 2xx is all we need to confirm the key works.
   await bridgeFetch('customers', { method: 'GET', query: { limit: 1 } })
   return { ok: true, reachable: true }
 }
