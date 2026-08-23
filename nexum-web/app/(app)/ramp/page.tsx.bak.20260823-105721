@@ -697,10 +697,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
   const [sending, setSending] = useState(false)
   const [step, setStep]       = useState<string | null>(null)
   const [txHash, setTxHash]   = useState<string | null>(null)
-  // 'idle' | 'confirming' (hash exists, not yet confirmed on-chain) | 'confirmed'
-  // (Circle reported COMPLETE/CONFIRMED). We never claim final success on a bare
-  // unconfirmed hash — the drain tracker below is the downstream on-chain truth.
-  const [phase, setPhase]     = useState<'idle' | 'confirming' | 'confirmed'>('idle')
+  const [sent, setSent]       = useState(false)
   const [err, setErr]         = useState<string | null>(null)
 
   const amt = Number(amount)
@@ -709,7 +706,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
   const submit = async () => {
     setErr(null)
     if (!valid) { setErr('Enter an amount of at least 1 USDC.'); return }
-    setSending(true); setPhase('idle'); setStep(null)
+    setSending(true); setSent(false); setStep(null)
     try {
       // The exact same Circle-signed send path as multichain send — USDC leaves
       // the user's wallet on Base and lands at the Bridge liquidation address,
@@ -718,18 +715,12 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
         { to: liq.address, amount: String(amt), chainKey: liq.sourceChain },
         setStep,
       )
-      const st = String(result.state ?? '').toUpperCase()
-      if (st === 'FAILED' || st === 'DENIED') {
-        setErr('The withdrawal failed on-chain. No funds left your wallet.')
-      } else if (result.txHash) {
+      if (result.txHash) {
         setTxHash(result.txHash)
-        // COMPLETE/CONFIRMED = Circle confirmed it on-chain → confident success.
-        // A bare hash (SENT) is on-chain but not yet confirmed → 'confirming';
-        // the drain tracker upgrades the message once Bridge sees it arrive.
-        setPhase((st === 'COMPLETE' || st === 'CONFIRMED') ? 'confirmed' : 'confirming')
+        const st = String(result.state ?? '').toUpperCase()
+        if (st !== 'FAILED' && st !== 'DENIED') setSent(true)
       } else {
-        // No hash yet (approved + broadcast, slow). Treat as confirming, not done.
-        setPhase('confirming')
+        setSent(true)
       }
     } catch (e: any) {
       if (e instanceof UserCancelledError) { setErr('You cancelled the withdrawal. Nothing was sent.') }
@@ -740,22 +731,17 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
     }
   }
 
-  if (phase !== 'idle') {
-    const confirmed = phase === 'confirmed'
+  if (sent) {
     return (
       <div className="space-y-4 rounded-2xl border border-app-border bg-app-surface p-5">
         <div className="flex items-center gap-2.5 text-app-text">
-          <span className={`flex h-9 w-9 items-center justify-center rounded-full ${confirmed ? 'bg-emerald-500/15' : 'bg-app-accent/15'}`}>
-            {confirmed
-              ? <CircleCheck className="h-5 w-5 text-emerald-400" />
-              : <Loader2 className="h-5 w-5 animate-spin text-app-accent-text" />}
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15">
+            <CircleCheck className="h-5 w-5 text-emerald-400" />
           </span>
           <div>
-            <p className="font-medium">{confirmed ? 'Withdrawal sent' : 'Confirming on-chain…'}</p>
+            <p className="font-medium">Withdrawal sent</p>
             <p className="text-sm text-app-muted">
-              {confirmed
-                ? `${amount} USDC is on its way to your bank. Track it below.`
-                : `${amount} USDC was submitted. We’re confirming it on-chain before it heads to your bank — this is tracked below.`}
+              {amount} USDC is on its way to your bank. Track it below.
             </p>
           </div>
         </div>
@@ -765,7 +751,7 @@ function WithdrawCard({ liq }: { liq: RampLiquidationAddress }) {
             View transaction <ExternalLink className="h-3 w-3" />
           </a>
         )}
-        <Button variant="outline" className="w-full" onClick={() => { setPhase('idle'); setAmount(''); setTxHash(null) }}>
+        <Button variant="outline" className="w-full" onClick={() => { setSent(false); setAmount(''); setTxHash(null) }}>
           Make another withdrawal
         </Button>
       </div>
