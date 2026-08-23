@@ -1,7 +1,7 @@
 'use client'
 import { Reveal } from './Reveal'
 import {
-  ArrowDownUp, Globe, Send, Store, FileText, BarChart3,
+  ArrowLeftRight, Globe, Send, Store, FileText, BarChart3,
   Building2, CreditCard, Wallet, LayoutDashboard, History, User, TrendingUp,
 } from 'lucide-react'
 
@@ -24,10 +24,10 @@ const GROUPS: Group[] = [
     title: 'Convert and move value',
     features: [
       {
-        icon: ArrowDownUp,
-        name: 'On/Off-ramp',
-        overview: 'Move money between your bank and USDC through our regulated payments partner. Deposit local currency to fund your wallet, or cash out USDC straight to a bank account.',
-        useCase: 'Top up with a bank transfer, or withdraw USDC to your account in USD or EUR, no exchange, no manual crypto steps.',
+        icon: ArrowLeftRight,
+        name: 'Trade',
+        overview: 'Live rates between USDC and 160+ currencies worldwide, with fees shown upfront before you commit.',
+        useCase: 'A freelancer paid in USDC checks the live NGN rate and sees exactly what a conversion would cost.',
       },
       {
         icon: Globe,
@@ -104,7 +104,7 @@ const GROUPS: Group[] = [
       {
         icon: Wallet,
         name: 'Wallet',
-        overview: 'Sign in with Google or email to get a secure Circle wallet, your keys, no seed phrase required. Everything is ready the moment you sign in, no crypto setup.',
+        overview: 'Sign in with Google or email to get a secure Circle wallet, your keys, no seed phrase required. Prefer self-custody? Connect an external wallet instead.',
         useCase: 'A first-time user signs in with Google and starts transacting immediately, no crypto setup.',
       },
       {
@@ -184,7 +184,7 @@ export function LandingFeatures() {
           Ready to move money the <span className="nx-gradient-text">modern way?</span>
         </h3>
         <p className="mx-auto mt-3 max-w-xl text-app-muted">
-          Sign in with Google or email, you’ll be transacting on Arc in under a minute.
+          Connect a wallet or sign in with Google, you’ll be transacting on Arc in under a minute.
         </p>
         <a
           href="/dashboard" target="_blank" rel="noopener noreferrer"

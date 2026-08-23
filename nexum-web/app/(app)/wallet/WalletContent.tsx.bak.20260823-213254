@@ -129,6 +129,11 @@ export function WalletContent() {
 
           {/* Quick actions */}
           <div className="flex gap-2">
+            <Link href="/convert" className="flex-1">
+              <Button variant="outline" size="sm" className="w-full">
+                <ArrowLeftRight className="h-3.5 w-3.5" /> Convert
+              </Button>
+            </Link>
             <Link href="/send" className="flex-1">
               <Button variant="outline" size="sm" className="w-full">
                 <Send className="h-3.5 w-3.5" /> Send
@@ -354,6 +359,9 @@ export function WalletContent() {
           ) : (
             <div className="flex h-32 flex-col items-center justify-center gap-2">
               <p className="text-xs text-app-muted">No transactions yet</p>
+              <Link href="/convert">
+                <Button variant="outline" size="sm">Make your first conversion</Button>
+              </Link>
             </div>
           )}
         </div>

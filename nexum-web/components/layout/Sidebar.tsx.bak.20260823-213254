@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  ArrowDownUp, Send, History, LayoutDashboard,
+  ArrowLeftRight, ArrowDownUp, Send, History, LayoutDashboard,
   TrendingUp, Globe, Store, ClipboardList, User,
   Wallet, Building2, Shield, FileText, BarChart3,
   CreditCard,
@@ -12,6 +12,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin'
 
 const nav = [
   { label: 'Exchange', items: [
+    { href: '/convert',  icon: ArrowLeftRight, label: 'Trade'    },
     { href: '/bridge',   icon: Globe,          label: 'Bridge'   },
     { href: '/send',     icon: Send,           label: 'Send'     },
     { href: '/ramp',     icon: ArrowDownUp,    label: 'On/Off-ramp' },

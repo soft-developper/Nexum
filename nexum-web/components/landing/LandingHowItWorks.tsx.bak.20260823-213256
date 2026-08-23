@@ -7,7 +7,7 @@ const STEPS = [
     n: '01',
     icon: Wallet,
     title: 'Connect or sign in',
-    body: 'Sign in with Google or email and get a secure Circle wallet, no seed phrase, no crypto setup. Your keys stay yours.',
+    body: 'Sign in with Google or email to get a secure Circle wallet, no seed phrase needed, or connect an external wallet if you prefer self-custody.',
   },
   {
     n: '02',
