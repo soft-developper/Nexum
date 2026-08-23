@@ -46,7 +46,7 @@ import {
   getExternalAccountsByAccount, getExternalAccountByAccountCurrency,
   createExternalAccountRow,
   getLiquidationAddressesByAccount, getLiquidationAddressByAccountCurrency,
-  createLiquidationAddressRow, getDrainEventsByLiquidationAddress,
+  createLiquidationAddressRow,
   type RampCustomerRow, type RampVirtualAccountRow,
   type RampExternalAccountRow, type RampLiquidationAddressRow,
 } from '../services/bridgexyz/repository'
@@ -786,42 +786,12 @@ router.get('/liquidation-address/:currency/drains', requireAccount, async (req, 
       failed = true
     }
 
-    // Merge in webhook-mirrored drain events (Phase 5 Part 4). The Bridge poll
-    // stays ground truth; the mirror fills gaps between polls and — when the
-    // poll fails — still surfaces the latest known state. Dedupe by drain id +
-    // state, preferring the poll's richer object when both exist.
-    let mirrored: any[] = []
-    try {
-      const rows = await getDrainEventsByLiquidationAddress(row.liquidation_address_id)
-      mirrored = rows.map(r => ({
-        id:                  r.drain_id,
-        state:               r.state,
-        amount:              r.amount,
-        currency:            r.currency,
-        deposit_tx_hash:     r.deposit_tx_hash,
-        destination_tx_hash: r.destination_tx_hash,
-        _source:             r.source,
-      }))
-    } catch { /* mirror is best-effort */ }
-
-    const seen = new Set<string>()
-    const merged: any[] = []
-    for (const d of drains) {
-      const key = `${d.id ?? ''}:${d.state ?? ''}`
-      seen.add(key)
-      merged.push(d)
-    }
-    for (const m of mirrored) {
-      const key = `${m.id ?? ''}:${m.state ?? ''}`
-      if (!seen.has(key)) { seen.add(key); merged.push(m) }
-    }
-
     res.json({
       currency,
       address: row.address,
-      count:   merged.length,
-      drains:  merged,
-      source:  failed ? (mirrored.length ? 'mirror' : 'unavailable') : 'merged',
+      count:   drains.length,
+      drains,
+      source:  failed ? 'unavailable' : 'bridge',
     })
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? 'Could not load withdrawal activity' })

@@ -23,14 +23,12 @@ import { flutterwaveConfigured } from '../services/ramp/providers/flutterwave-au
 import type { SenderMode, PayoutMethod, ChainKey } from '../services/ramp/types'
 import {
   verifyWebhookSignature, parseWebhookEvent, extractActivityDetail,
-  extractDrainDetail,
   bridgeWebhookPublicKey, bridgeWebhookConfigured, WebhookSignatureError,
 } from '../services/bridgexyz/webhooks'
 import {
-  recordWebhookEvent, upsertDepositEvent, upsertDrainEvent,
+  recordWebhookEvent, upsertDepositEvent,
 } from '../services/bridgexyz/repository'
 import { maybeSendDepositEmail } from '../services/bridgexyz/depositNotify'
-import { maybeSendPayoutEmail } from '../services/bridgexyz/payoutNotify'
 
 const router = Router()
 
@@ -348,24 +346,6 @@ webhookRouter.post('/bridgexyz', async (req: any, res) => {
       // Fire a branded email on terminal states (landed / returned / failed).
       // Best-effort + deduped; never blocks the 200 response.
       await maybeSendDepositEmail(detail)
-    }
-
-    // Off-ramp (Phase 5 Part 4): mirror liquidation-address drain events and
-    // fire branded payout emails on terminal states. Same shape as deposits.
-    const drain = extractDrainDetail(event)
-    if (drain && drain.liquidationAddressId) {
-      await upsertDrainEvent({
-        liquidationAddressId: drain.liquidationAddressId,
-        drainId:              drain.drainId,
-        eventId:              event.event_id,
-        state:                drain.state,
-        currency:             drain.currency,
-        amount:               drain.amount,
-        depositTxHash:        drain.depositTxHash,
-        destinationTxHash:    drain.destinationTxHash,
-        source:               'webhook',
-      })
-      await maybeSendPayoutEmail(drain)
     }
 
     res.status(200).json({ received: true })

@@ -159,36 +159,3 @@ export function extractActivityDetail(event: BridgeWebhookEvent): ActivityDetail
     receiptUrl:        receipt.url ?? null,
   }
 }
-
-/**
- * For a liquidation_address drain event, dig out the fields we mirror locally.
- * The event_object mirrors the /drains Drain shape. Returns null for events
- * that aren't liquidation-address drains.
- *
- * Bridge drain states: funds_received → payment_submitted → payment_processed,
- * plus undeliverable | returned | refunded | error | canceled.
- */
-export interface DrainDetail {
-  liquidationAddressId: string | null
-  drainId:              string | null
-  state:                string | null
-  amount:               string | null
-  currency:             string | null
-  depositTxHash:        string | null
-  destinationTxHash:    string | null
-}
-
-export function extractDrainDetail(event: BridgeWebhookEvent): DrainDetail | null {
-  if (!/liquidation_address/i.test(event.event_category)) return null
-  const o = (event.event_object ?? {}) as Record<string, any>
-  const dest = (o.destination ?? {}) as Record<string, any>
-  return {
-    liquidationAddressId: o.liquidation_address_id ?? o.liquidationAddressId ?? null,
-    drainId:              o.id ?? o.drain_id ?? null,
-    state:                o.state ?? event.event_type ?? null,
-    amount:               o.amount ?? null,
-    currency:             o.currency ?? dest.currency ?? null,
-    depositTxHash:        o.deposit_tx_hash ?? null,
-    destinationTxHash:    o.destination_tx_hash ?? null,
-  }
-}
