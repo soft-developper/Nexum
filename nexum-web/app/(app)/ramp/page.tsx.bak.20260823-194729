@@ -549,7 +549,7 @@ function BankDetailsForm({ currency, existing, busy, error, onBack, onRegister, 
           <>
             <p className="text-sm text-app-muted">
               Add the bank account you&rsquo;d like to receive {currency.toUpperCase()} in. Your details go
-              straight to our payments partner - Nexum never stores your account number.
+              straight to our payments partner &mdash; Nexum never stores your account number.
             </p>
 
             <Field label="Account holder name">
