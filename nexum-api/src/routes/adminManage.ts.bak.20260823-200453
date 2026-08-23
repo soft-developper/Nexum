@@ -1074,7 +1074,7 @@ router.get('/analytics', requirePermission(PERMISSIONS.VIEW_ANALYTICS), async (_
 // the settled amount. Onramp currency 'usdc'/'usd' is already USD; offramp
 // destination currency converts via live rates.
 // ══════════════════════════════════════════════════════════
-router.get('/ramps', requirePermission(PERMISSIONS.VIEW_RAMPS), async (_req, res) => {
+router.get('/ramps', requirePermission(PERMISSIONS.VIEW_ANALYTICS), async (_req, res) => {
   try {
     const now  = Math.floor(Date.now() / 1000)
     const day  = 86400

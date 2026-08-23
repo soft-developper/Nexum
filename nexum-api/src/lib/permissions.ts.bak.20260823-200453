@@ -17,7 +17,6 @@ export const PERMISSIONS = {
   VIEW_MESSAGES:     'view_messages',     // read contact-form submissions
   VIEW_AUDIT_LOG:    'view_audit_log',    // see audit trail
   SEND_BROADCASTS:   'send_broadcasts',   // email sub-admins / users
-  VIEW_RAMPS:        'view_ramps',        // fiat on/off-ramp analytics
 } as const
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS]
@@ -42,5 +41,4 @@ export const PERMISSION_META: Record<string, { label: string; description: strin
   view_messages:    { label: 'View Messages',     description: 'Read contact-form submissions' },
   view_audit_log:   { label: 'View Audit Log',    description: 'Review all admin activity and duty sessions' },
   send_broadcasts:  { label: 'Send Broadcasts',   description: 'Email sub-admins and registered users' },
-  view_ramps:       { label: 'View Ramp Analytics', description: 'See on/off-ramp volume, KYC funnel and health' },
 }

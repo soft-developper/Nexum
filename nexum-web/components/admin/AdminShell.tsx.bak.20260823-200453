@@ -43,7 +43,7 @@ const NAV = [
   // dangerous to delegate, so it is not a grantable permission at all.
   { href: '/admin/maintenance', icon: Wrench,         label: 'Maintenance', perm: 'manage_admins', superOnly: true },
   { href: '/admin/analytics',  icon: BarChart3,       label: 'Analytics',  perm: 'view_analytics'   },
-  { href: '/admin/ramps',      icon: ArrowLeftRight,  label: 'Ramps',      perm: 'view_ramps'       },
+  { href: '/admin/ramps',      icon: ArrowLeftRight,  label: 'Ramps',      perm: 'view_analytics'   },
   { href: '/admin/audit',      icon: ScrollText,      label: 'Audit log',  perm: 'view_audit_log'   },
 ]
 
@@ -140,7 +140,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       { perm: 'resolve_disputes', path: '/admin/disputes'   },
       { perm: 'manage_users',     path: '/admin/users'      },
       { perm: 'view_analytics',   path: '/admin/analytics'  },
-      { perm: 'view_ramps',       path: '/admin/ramps'      },
+      { perm: 'view_analytics',   path: '/admin/ramps'      },
       { perm: 'manage_admins',    path: '/admin/sub-admins' },
       { perm: 'view_audit_log',   path: '/admin/audit'      },
     ]
