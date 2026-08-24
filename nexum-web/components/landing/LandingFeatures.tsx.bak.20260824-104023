@@ -86,8 +86,8 @@ const GROUPS: Group[] = [
       {
         icon: Building2,
         name: 'Treasury',
-        overview: 'Your payroll command centre: every batch in one dashboard with USD totals and exportable records for accounting.',
-        useCase: 'See total paid, recipients, and in-progress batches at a glance, then export the recipient ledger at month end.',
+        overview: 'Rules that auto-convert incoming USDC to local currency. (A unified cross-chain balance is planned for a future release.)',
+        useCase: 'Hold funds once and pay out on whichever chain a partner needs, without bridging first.',
       },
       {
         icon: CreditCard,
@@ -116,7 +116,7 @@ const GROUPS: Group[] = [
       {
         icon: History,
         name: 'History',
-        overview: 'Every payment, bridge and transfer, with real on-chain status, settled, pending, or failed.',
+        overview: 'Every trade, bridge and transfer, with real on-chain status, settled, pending, or failed.',
         useCase: 'Check whether last night’s conversion actually settled on-chain, with the transaction hash to verify.',
       },
       {

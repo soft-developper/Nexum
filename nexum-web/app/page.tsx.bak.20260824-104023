@@ -7,7 +7,7 @@ import { LandingHowItWorks } from '@/components/landing/LandingHowItWorks'
 // ThemeToggle is its own 'use client' component, so it can be dropped into
 // this server component without making the whole page client-side.
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
-import { Zap, Coins } from 'lucide-react'
+import { ShieldCheck, Zap, Coins } from 'lucide-react'
 
 export const metadata = {
   title: 'Nexum, Stablecoin FX & cross-border payments on Arc',
@@ -93,6 +93,7 @@ function Hero() {
 
         {/* Trust row */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-app-muted">
+          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-app-accent-text" /> Non-custodial</span>
           <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4 text-app-accent-text" /> Multi-chain USDC</span>
           <span className="inline-flex items-center gap-1.5"><Coins className="h-4 w-4 text-app-accent-text" /> Fees in USDC</span>
         </div>
