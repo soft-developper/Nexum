@@ -64,18 +64,6 @@ let sdk: any = null
 let deviceIdCache: string | null = null
 
 /**
- * The current login callback. The SDK's constructor callback is registered
- * ONCE (the instance is cached), but the signin page re-creates its callback
- * on every render (its `enter` closes over `email`, and its effect cleanup
- * flips a `cancelled` flag). If the SDK kept calling the FIRST callback, that
- * callback's `cancelled` is already true by the time an OTP verifies, so the
- * result is dropped and nothing happens. Reading the callback live from this
- * holder means the SDK always invokes the LATEST one.
- */
-let currentOnLogin:
-  ((err: unknown, result: CircleLoginResult | null) => void) | undefined
-
-/**
  * Get (and cache) the SDK. `onLogin` fires after a social redirect
  * completes, which is why it must be supplied at construction time
  * rather than at the moment the button is clicked.
@@ -83,10 +71,6 @@ let currentOnLogin:
 export async function getSdk(
   onLogin?: (err: unknown, result: CircleLoginResult | null) => void,
 ): Promise<any> {
-  // Always refresh the active callback, even when the instance is cached, so
-  // the SDK invokes the caller's LATEST callback rather than a stale one.
-  if (onLogin) currentOnLogin = onLogin
-
   if (sdk) return sdk
 
   const { W3SSdk } = await import('@circle-fin/w3s-pw-web-sdk')
@@ -104,14 +88,11 @@ export async function getSdk(
         },
       },
     },
-    // Reads currentOnLogin LIVE (not a captured arg) so social AND email
-    // verification always reach the current handler.
     (err: unknown, result: any) => {
-      const cb = currentOnLogin
-      if (!cb) return
-      if (err || !result?.userToken) return cb(err ?? new Error('Sign-in failed'), null)
+      if (!onLogin) return
+      if (err || !result?.userToken) return onLogin(err ?? new Error('Sign-in failed'), null)
       const social = result?.oAuthInfo?.socialUserInfo
-      cb(null, {
+      onLogin(null, {
         userToken:     result.userToken,
         encryptionKey: result.encryptionKey,
         email:         social?.email,
