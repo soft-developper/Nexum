@@ -90,32 +90,3 @@ export function useUpdateRecipient() {
     onSuccess: (_d, vars) => queryClient.invalidateQueries({ queryKey: ['payroll-batch', vars.batchId] }),
   })
 }
-
-export interface PayrollExportRow {
-  id:               string
-  batch_id:         string
-  batch_name:       string
-  dest_chain:       string
-  name:             string | null
-  wallet_address:   string
-  amount:           number
-  currency:         string
-  status:           string
-  tx_hash:          string | null
-  memo_ref:         string | null
-  created_at:       number
-  batch_created_at: number
-}
-
-// One-shot fetch (not a hook) of per-recipient rows for CSV export.
-export async function fetchPayrollExport(
-  wallet: string, fromTs: number, toTs: number,
-): Promise<PayrollExportRow[]> {
-  if (!wallet) return []
-  const res = await fetch(
-    `${API}/payroll/recipients/export?wallet=${wallet}&from=${fromTs}&to=${toTs}`,
-  )
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.recipients ?? []
-}

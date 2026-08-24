@@ -4,11 +4,11 @@ import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { usePayrollBatches, fetchPayrollExport } from '@/hooks/usePayroll'
+import { usePayrollBatches } from '@/hooks/usePayroll'
 import { formatAmount } from '@/lib/utils'
 import {
   Plus, Users, Building2, ArrowRight,
-  Wallet, CheckCircle2, Clock, Download, Loader2,
+  Wallet, CheckCircle2, Clock,
 } from 'lucide-react'
 
 const RANGES = [
@@ -67,51 +67,6 @@ export function TreasuryContent() {
   }
   const rows = tabData[activeTab]
 
-  const [exporting, setExporting] = useState(false)
-
-  async function downloadCSV() {
-    if (!address) return
-    setExporting(true)
-    try {
-      const data = await fetchPayrollExport(address, fromTs, now)
-      const header = [
-        'Batch', 'Recipient', 'Wallet', 'Amount', 'Currency',
-        'USD value', 'Status', 'Tx hash', 'Memo', 'Chain', 'Date',
-      ]
-      const csvRows = [header.join(',')]
-      for (const r of data) {
-        // Payroll is USDC-denominated, so USD value == amount (1:1).
-        const cells = [
-          r.batch_name ?? '',
-          r.name ?? '',
-          r.wallet_address ?? '',
-          String(r.amount ?? 0),
-          r.currency ?? 'USDC',
-          Number(r.amount ?? 0).toFixed(2),
-          r.status ?? '',
-          r.tx_hash ?? '',
-          r.memo_ref ?? '',
-          r.dest_chain ?? '',
-          new Date((r.created_at || 0) * 1000).toISOString(),
-        ].map(v => {
-          const str = String(v)
-          // Quote any field containing a comma, quote or newline (CSV-safe).
-          return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
-        })
-        csvRows.push(cells.join(','))
-      }
-      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href     = url
-      a.download = `nexum-payroll-${new Date().toISOString().slice(0, 10)}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
-    } finally {
-      setExporting(false)
-    }
-  }
-
   return (
     <div>
       {/* Header */}
@@ -125,12 +80,6 @@ export function TreasuryContent() {
             className="rounded-lg border border-app-border bg-app-surface px-3 py-1.5 text-xs text-app-text outline-none">
             {RANGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          <Button size="sm" variant="outline" onClick={downloadCSV}
-            disabled={exporting || rows.length === 0}>
-            {exporting
-              ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <Download className="h-4 w-4" />} Export CSV
-          </Button>
           <Link href="/treasury/payroll">
             <Button size="sm">
               <Users className="h-4 w-4" /> New payroll
