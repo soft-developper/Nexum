@@ -18,10 +18,13 @@ const RANGES = [
   ['365', 'Last year'],
 ] as const
 
+type TabKey = 'all' | 'completed' | 'processing' | 'failed'
+
 export function TreasuryContent() {
   const { address }            = useAccount()
   const { data: batches = [] } = usePayrollBatches()
   const [range, setRange]      = useState('30')
+  const [activeTab, setTab]    = useState<TabKey>('all')
 
   const now    = Math.floor(Date.now() / 1000)
   const fromTs = now - Number(range) * 86400
@@ -29,10 +32,11 @@ export function TreasuryContent() {
   // Payroll is USDC-denominated, so USD value == USDC amount (1:1).
   const inRange = batches.filter(b => (b.created_at ?? 0) >= fromTs)
 
-  const completed   = inRange.filter(b => b.status === 'completed')
-  const processing  = inRange.filter(b => b.status === 'processing' || b.status === 'partial')
-  const totalPaid   = completed.reduce((s, b) => s + (b.total_amount ?? 0), 0)
-  const recipients  = completed.reduce((s, b) => s + (b.recipient_count ?? 0), 0)
+  const completed  = inRange.filter(b => b.status === 'completed')
+  const processing = inRange.filter(b => b.status === 'processing' || b.status === 'partial')
+  const failed     = inRange.filter(b => b.status === 'failed')
+  const totalPaid  = completed.reduce((s, b) => s + (b.total_amount ?? 0), 0)
+  const recipients = completed.reduce((s, b) => s + (b.recipient_count ?? 0), 0)
 
   const summary = [
     {
@@ -54,6 +58,14 @@ export function TreasuryContent() {
       icon:  Clock,
     },
   ]
+
+  const tabData: Record<TabKey, typeof inRange> = {
+    all:        inRange,
+    completed:  completed,
+    processing: processing,
+    failed:     failed,
+  }
+  const rows = tabData[activeTab]
 
   return (
     <div>
@@ -90,59 +102,91 @@ export function TreasuryContent() {
         ))}
       </div>
 
-      {/* Recent payrolls (A2 will turn this into the tabbed table) */}
-      <div className="rounded-xl border border-app-border bg-app-surface p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-app-text">Recent payrolls</p>
-            <p className="text-xs text-app-muted">Batch USDC payments with Memo references</p>
-          </div>
-          <Link href="/treasury/payroll">
-            <Button size="sm" variant="outline">
-              <Plus className="h-3.5 w-3.5" /> New batch
-            </Button>
-          </Link>
-        </div>
-
-        {inRange.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <Building2 className="h-8 w-8 text-app-border" />
-            <p className="text-sm text-app-muted">No payrolls in this period</p>
-            <p className="text-xs text-app-muted">
-              Send USDC to multiple wallets in one batch with unique Memo references
-            </p>
-            <Link href="/treasury/payroll">
-              <Button size="sm" variant="outline" className="mt-2">Create first payroll</Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {inRange.slice(0, 10).map(batch => (
-              <Link key={batch.id} href={`/treasury/payroll/${batch.id}`}>
-                <div className="flex items-center justify-between rounded-xl border border-app-border bg-app-bg p-3 hover:border-app-accent/40 transition-colors cursor-pointer">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-app-text truncate">{batch.name}</p>
-                      <Badge variant={
-                        batch.status === 'completed'  ? 'success' :
-                        batch.status === 'processing' ? 'arc'     :
-                        batch.status === 'failed'     ? 'danger'  : 'warning'
-                      }>
-                        {batch.status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-app-muted">
-                      {batch.recipient_count} recipients · ${formatAmount(batch.total_amount)} USDC
-                      · {new Date(batch.created_at * 1000).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-app-muted" />
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+      {/* Tabs */}
+      <div className="mb-4 flex gap-1 rounded-lg border border-app-border bg-app-surface p-1 w-fit">
+        {([
+          ['all',        'All'],
+          ['completed',  'Completed'],
+          ['processing', 'Processing'],
+          ['failed',     'Failed'],
+        ] as const).map(([t, l]) => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`rounded-md px-3 py-1.5 text-xs transition-colors
+              ${activeTab === t ? 'bg-app-border text-app-text' : 'text-app-muted hover:text-app-text'}`}>
+            {l} ({tabData[t].length})
+          </button>
+        ))}
       </div>
+
+      {/* Batch table */}
+      {rows.length === 0 ? (
+        <div className="rounded-xl border border-app-border bg-app-surface p-8 text-center">
+          <Building2 className="mx-auto mb-2 h-8 w-8 text-app-border" />
+          <p className="text-sm text-app-muted">No {activeTab === 'all' ? 'payrolls' : `${activeTab} payrolls`} in this period</p>
+          {activeTab === 'all' && (
+            <Link href="/treasury/payroll">
+              <Button size="sm" variant="outline" className="mt-3">
+                <Plus className="h-3.5 w-3.5" /> Create first payroll
+              </Button>
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-app-border bg-app-surface overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-app-border text-left text-xs text-app-muted">
+                <th className="px-4 py-3 font-medium">Batch</th>
+                <th className="px-4 py-3 font-medium">Recipients</th>
+                <th className="px-4 py-3 font-medium">Total (USD)</th>
+                <th className="px-4 py-3 font-medium">Chain</th>
+                <th className="px-4 py-3 font-medium">Date</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(batch => (
+                <tr key={batch.id} className="border-b border-app-border/50 last:border-0 hover:bg-app-bg/50 transition-colors">
+                  <td className="px-4 py-3">
+                    <Link href={`/treasury/payroll/${batch.id}`}
+                      className="font-medium text-app-text hover:text-app-accent-text transition-colors">
+                      {batch.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs text-app-muted">{batch.recipient_count}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-xs text-app-text">${formatAmount(batch.total_amount)}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs text-app-muted capitalize">{batch.dest_chain ?? '-'}</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-app-muted">
+                    {new Date(batch.created_at * 1000).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={
+                      batch.status === 'completed'  ? 'success' :
+                      batch.status === 'processing' ? 'arc'     :
+                      batch.status === 'failed'     ? 'danger'  : 'warning'
+                    }>
+                      {batch.status}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link href={`/treasury/payroll/${batch.id}`}
+                      className="text-app-muted hover:text-app-accent-text transition-colors">
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
