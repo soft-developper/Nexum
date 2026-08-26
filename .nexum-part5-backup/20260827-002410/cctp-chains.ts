@@ -177,32 +177,6 @@ const MAINNET_CHAINS: CctpChain[] = [
     rpcUrl:  process.env.NEXT_PUBLIC_POLYGON_RPC_URL ?? 'https://polygon-rpc.com',
     explorer: 'https://polygonscan.com',
   },
-  // __NEXUM_MAINNET_CHAINS__ (part5) addresses verified against Circle's
-  // canonical USDC contract + supported-domains pages.
-  {
-    key: 'optimism', name: 'OP Mainnet', domain: 2, chainId: 10,
-    usdc: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-    rpcUrl:  process.env.NEXT_PUBLIC_OP_RPC_URL ?? 'https://mainnet.optimism.io',
-    explorer: 'https://optimistic.etherscan.io',
-  },
-  {
-    key: 'avalanche', name: 'Avalanche', domain: 1, chainId: 43114,
-    usdc: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
-    rpcUrl:  process.env.NEXT_PUBLIC_AVAX_RPC_URL ?? 'https://api.avax.network/ext/bc/C/rpc',
-    explorer: 'https://snowtrace.io',
-  },
-  {
-    key: 'unichain', name: 'Unichain', domain: 10, chainId: 130,
-    usdc: '0x078D782b760474a361dDA0AF3839290b0EF57AD6',
-    rpcUrl:  process.env.NEXT_PUBLIC_UNICHAIN_RPC_URL ?? 'https://mainnet.unichain.org',
-    explorer: 'https://uniscan.xyz',
-  },
-  {
-    key: 'monad', name: 'Monad', domain: 15, chainId: 143,
-    usdc: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
-    rpcUrl:  process.env.NEXT_PUBLIC_MONAD_RPC_URL ?? '',
-    explorer: 'https://monadexplorer.com',
-  },
 ]
 
 export function cctpChains(env: CctpEnv = CCTP_ENV): CctpChain[] {

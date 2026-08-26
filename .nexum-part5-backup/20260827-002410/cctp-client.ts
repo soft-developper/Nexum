@@ -319,16 +319,10 @@ export interface FeeEntry {
   us, normalised. If the call fails we return an empty list and the caller
   decides how to degrade (fast unavailable, standard is free anyway).
 */
-// __NEXUM_FEE_PROXY_CLIENT__ (part5) fee lookup goes through OUR API, not Iris.
-// Calling Circle's Iris fee endpoint straight from the browser was unreliable
-// (CORS / network), which greyed out Fast and hid the fee panel. The API proxies
-// it server-side. First arg kept for signature compatibility; it is unused now.
-const FEE_API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
-
 export async function fetchFeeTable(
-  _irisBase: string, fromDomain: number, toDomain: number,
+  irisBase: string, fromDomain: number, toDomain: number,
 ): Promise<FeeEntry[]> {
-  const url = `${FEE_API_BASE}/bridge/fees/${fromDomain}/${toDomain}`
+  const url = `${irisBase}/v2/burn/USDC/fees/${fromDomain}/${toDomain}`
   try {
     const res = await fetch(url)
     if (!res.ok) return []

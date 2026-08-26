@@ -133,42 +133,4 @@ router.post('/:id/failed', async (req, res) => {
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
 
-
-// __NEXUM_FEE_PROXY__ (part5) CCTP fee proxy ------------------------------
-// The bridge UI needs Circle's Fast-Transfer fee for a route to show the fee,
-// the you-receive total, and to compute maxFee. Calling Circle's Iris API from
-// the browser is unreliable (CORS / network), which left the Fast option greyed
-// out and the fee panel blank. Proxying it here makes it reliable.
-//
-// GET /bridge/fees/:from/:to  ->  Iris GET /v2/burn/USDC/fees/:from/:to
-// Returns the raw fee array. Fast is the entry with finalityThreshold 1000,
-// Standard is 2000 (currently free). On any upstream failure we return [] with
-// 200 so the client degrades gracefully rather than breaking the panel.
-const CCTP_IRIS_BASE =
-  (process.env.CCTP_ENV === 'mainnet')
-    ? 'https://iris-api.circle.com'
-    : 'https://iris-api-sandbox.circle.com'
-
-router.get('/fees/:from/:to', async (req, res) => {
-  const from = Number(req.params.from)
-  const to   = Number(req.params.to)
-  if (!Number.isFinite(from) || !Number.isFinite(to)) {
-    return res.status(400).json({ error: 'from and to domains must be numbers' })
-  }
-  try {
-    const url = `${CCTP_IRIS_BASE}/v2/burn/USDC/fees/${from}/${to}`
-    const upstream = await fetch(url)
-    if (!upstream.ok) {
-      // Not fatal: an unknown route or a transient Iris error just means we
-      // can't show a Fast fee. Standard is free, so [] is a safe answer.
-      return res.json([])
-    }
-    const data = await upstream.json()
-    const rows = Array.isArray(data) ? data : ((data as any)?.data ?? [data])
-    return res.json(rows)
-  } catch {
-    return res.json([])
-  }
-})
-
 export default router

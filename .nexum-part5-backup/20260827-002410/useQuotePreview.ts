@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { chainByKey, irisBase } from '@/lib/cctp-chains'
 import {
-  // __NEXUM_FAST_STATIC__ (part5) Fast availability is a static chain fact
-  getBothQuotes, toUnits, fromUnits, fastTransferSupported,
+  getBothQuotes, toUnits, fromUnits,
   type TransferQuote,
 } from '@/lib/cctp-client'
 
@@ -71,10 +70,7 @@ export function useQuotePreview(
           loading: false,
           fast,
           standard,
-          // Fast availability is a property of the SOURCE CHAIN, not of whether
-          // the fee fetch succeeded. Never grey out Fast on a chain that
-          // supports it just because the fee number isn't in yet.
-          fastAvailable: fastTransferSupported(from.key),
+          fastAvailable: fast !== null,
         })
       } catch {
         if (id !== reqId.current) return
