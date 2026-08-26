@@ -150,9 +150,6 @@ export interface AttestationResult {
   attestation?: string     // Circle's signature
   nonce?:      string
   eventNonce?: string
-  // __NEXUM_ATTEST_EXPIRY__ (part4) block after which this attestation can no
-  // longer mint; past it, call reattest() for a fresh one. Empty when unknown.
-  expirationBlock?: string
 }
 
 /*
@@ -186,7 +183,6 @@ export async function fetchAttestation(
       attestation: msg.attestation,
       nonce: msg.eventNonce ?? msg.nonce,
       eventNonce: msg.eventNonce,
-      expirationBlock: msg.decodedMessage?.expirationBlock ?? msg.expirationBlock,
     }
   }
   return { status: 'pending', nonce: msg.eventNonce ?? msg.nonce }
