@@ -36,9 +36,7 @@ import {
   cctpContracts, irisBase, chainByKey, addressToBytes32, CCTP_ENV,
 } from '@/lib/cctp-chains'
 import {
-  // __NEXUM_BRIDGE_MODE__ (part2) Fast/Standard support
-  getTransferQuote, fetchAttestation, toUnits,
-  type TransferMode, type TransferQuote,
+  getBurnFee, fetchAttestation, toUnits, FINALITY,
 } from '@/lib/cctp-client'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
@@ -59,16 +57,11 @@ export interface BridgeState {
   waitedSec: number
   /** A human step message while the user approves on their device. */
   note:     string | null
-  /** The transfer mode actually used for this bridge (fast may degrade to standard). */
-  mode:     TransferMode
-  /** The resolved fee quote, so the UI can show fee + you-receive + ETA. */
-  quote:    TransferQuote | null
 }
 
 const INITIAL: BridgeState = {
   step: 'idle', bridgeId: null, burnTx: null, mintTx: null,
   error: null, inFlight: false, waitedSec: 0, note: null,
-  mode: 'fast', quote: null,
 }
 
 // Iris allows 40 req/s and blocks for 5 minutes if breached, so poll gently.
@@ -105,8 +98,6 @@ export function useBridge() {
     toKey:   string
     amount:  number
     recipient?: string
-    /** Fast (default) or Standard. Fast auto-degrades where unsupported. */
-    mode?: TransferMode
   }) => {
     if (!address) { setState(s => ({ ...s, step: 'error', error: 'Sign in first' })); return }
 
@@ -123,14 +114,12 @@ export function useBridge() {
 
     try {
       // ── 1. Record BEFORE anything is signed ──────────────
-      const requestedMode: TransferMode = params.mode ?? 'fast'
-      setState({ ...INITIAL, step: 'creating', mode: requestedMode })
+      setState({ ...INITIAL, step: 'creating' })
       const created = await api('/bridge', {
         walletAddress: address,
         fromChain: from.key, toChain: to.key,
         fromDomain: from.domain, toDomain: to.domain,
         amount: params.amount, recipient,
-        mode: requestedMode,
       })
       bridgeId = created.id
       setState(s => ({ ...s, bridgeId }))
@@ -163,22 +152,7 @@ export function useBridge() {
       setState(s => ({ ...s, step: 'burning' }))
       await api(`/bridge/${bridgeId}/burning`, {})
 
-      /*
-        Resolve a Fast/Standard quote. getTransferQuote reads Circle's live
-        fee table and returns the mode-correct maxFee plus the finality
-        threshold to send. Fast silently degrades to Standard on source chains
-        where Circle disables Fast (quote.mode tells us what actually applies).
-      */
-      const quote = await getTransferQuote({
-        irisBase:    irisBase(),
-        fromKey:     from.key,
-        fromDomain:  from.domain,
-        toDomain:    to.domain,
-        amountUnits,
-        mode:        requestedMode,
-      })
-      const finalityThreshold = quote.mode === 'fast' ? 1000 : 2000
-      setState(s => ({ ...s, mode: quote.mode, quote }))
+      const fee = await getBurnFee(irisBase(), from.domain, to.domain, amountUnits)
 
       /*
         depositForBurn(amount, destinationDomain, mintRecipient, burnToken,
@@ -198,8 +172,8 @@ export function useBridge() {
           addressToBytes32(recipient),
           from.usdc,
           `0x${'0'.repeat(64)}`,
-          quote.maxFeeUnits.toString(),
-          finalityThreshold,
+          fee.maxFeeUnits.toString(),
+          FINALITY.FINALIZED,
         ],
       }, note)
 
