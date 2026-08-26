@@ -6,12 +6,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useBridge } from '@/hooks/useBridge'
-// __NEXUM_BRIDGE_MODE_UI__ (part3) Fast/Standard toggle + live quote
-import { Zap, Clock } from 'lucide-react'
-import type { TransferMode } from '@/lib/cctp-client'
-import {
-  useQuotePreview, formatUnits, formatEta,
-} from '@/hooks/useQuotePreview'
 import { chainByKey, isRouteSupported } from '@/lib/cctp-chains'
 import { ChainCombobox } from '@/components/bridge/ChainCombobox'
 import { useChainUsdcBalance } from '@/hooks/useChainUsdcBalance'
@@ -58,17 +52,6 @@ export function BridgeCard() {
   const [fromKey, setFromKey] = useState('arc')
   const [toKey,   setToKey]   = useState('base')
   const [amount,  setAmount]  = useState('')
-  const [mode,    setMode]    = useState<TransferMode>('fast')
-
-  // Live Fast/Standard quote as the user types (fee, you-receive, ETA).
-  const preview = useQuotePreview(fromKey, toKey, amount)
-  // If the source can't do Fast, force Standard and lock the toggle.
-  useEffect(() => {
-    if (!preview.loading && preview.standard && !preview.fastAvailable && mode === 'fast') {
-      setMode('standard')
-    }
-  }, [preview.loading, preview.fastAvailable, preview.standard, mode])
-  const activeQuote = mode === 'fast' ? preview.fast : preview.standard
 
   // Balance on the SOURCE chain, so Max and the insufficient check are correct
   // for whichever direction the user picks.
@@ -162,94 +145,6 @@ export function BridgeCard() {
         className="mb-4 w-full rounded-lg border border-app-border bg-app-bg px-3 py-2.5 font-mono text-sm text-app-text outline-none placeholder:text-app-border disabled:opacity-50"
       />
 
-      {/* __NEXUM_BRIDGE_MODE_UI__  Transfer speed: Fast vs Standard.
-          Fast pays a small Circle fee for near-instant attestation; Standard is
-          free but waits for hard finality. Fast is the default; it is disabled
-          on source chains where Circle doesn't offer it (standard is already
-          fast there). */}
-      {routeOk && amt > 0 && (
-        <div className="mb-4">
-          <label className="mb-1.5 block text-xs text-app-muted">Transfer speed</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => preview.fastAvailable && setMode('fast')}
-              disabled={busy || !preview.fastAvailable}
-              className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition
-                ${mode === 'fast'
-                  ? 'border-app-accent-text bg-app-accent-text/10'
-                  : 'border-app-border bg-app-bg hover:border-app-muted'}
-                ${!preview.fastAvailable ? 'cursor-not-allowed opacity-40' : ''}`}
-            >
-              <span className="flex items-center gap-1 text-xs font-medium text-app-text">
-                <Zap className="h-3 w-3" /> Fast
-              </span>
-              <span className="text-[10px] text-app-muted">
-                {preview.fast ? formatEta(preview.fast.etaSeconds) : 'seconds'}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('standard')}
-              disabled={busy}
-              className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition
-                ${mode === 'standard'
-                  ? 'border-app-accent-text bg-app-accent-text/10'
-                  : 'border-app-border bg-app-bg hover:border-app-muted'}`}
-            >
-              <span className="flex items-center gap-1 text-xs font-medium text-app-text">
-                <Clock className="h-3 w-3" /> Standard
-              </span>
-              <span className="text-[10px] text-app-muted">
-                {preview.standard ? formatEta(preview.standard.etaSeconds) : 'free'}
-              </span>
-            </button>
-          </div>
-
-          {!preview.fastAvailable && !preview.loading && preview.standard && (
-            <p className="mt-1.5 flex items-center gap-1 text-[10px] text-app-muted">
-              <Info className="h-3 w-3 shrink-0" />
-              Fast isn't available from {from?.name} - standard attestation is already fast here.
-            </p>
-          )}
-
-          {/* Quote panel: fee, you-receive, ETA for the chosen mode. */}
-          <div className="mt-2 space-y-1 rounded-lg border border-app-border bg-app-bg px-3 py-2.5 text-[11px]">
-            {preview.loading ? (
-              <p className="flex items-center gap-1.5 text-app-muted">
-                <Loader2 className="h-3 w-3 animate-spin" /> Fetching quote…
-              </p>
-            ) : activeQuote ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-app-muted">Bridge fee</span>
-                  <span className="font-mono text-app-text">
-                    {activeQuote.feeUnits > BigInt(0)
-                      ? `${formatUnits(activeQuote.feeUnits)} USDC`
-                      : 'Free'}
-                    {activeQuote.feeBps > 0 && (
-                      <span className="ml-1 text-app-muted">({activeQuote.feeBps} bps)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-app-muted">You receive on {to?.name}</span>
-                  <span className="font-mono font-medium text-app-text">
-                    {formatUnits(activeQuote.receiveUnits)} USDC
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-app-muted">Estimated time</span>
-                  <span className="font-mono text-app-text">{formatEta(activeQuote.etaSeconds)}</span>
-                </div>
-              </>
-            ) : (
-              <p className="text-app-muted">Enter an amount to see the fee and arrival total.</p>
-            )}
-          </div>
-        </div>
-      )}
-
       {!routeOk && fromKey === toKey && (
         <p className="mb-3 text-xs text-amber-400">Source and destination must be different chains.</p>
       )}
@@ -291,7 +186,7 @@ export function BridgeCard() {
         <Button
           className="w-full"
           disabled={!canSubmit}
-          onClick={() => bridge({ fromKey, toKey, amount: amt, mode })}
+          onClick={() => bridge({ fromKey, toKey, amount: amt })}
         >
           {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Working…</>
                 : !isConnected ? 'Sign in to bridge'
