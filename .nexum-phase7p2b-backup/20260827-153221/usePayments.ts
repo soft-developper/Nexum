@@ -1,7 +1,5 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-// __NEXUM_IDEMPOTENCY_CLIENT__ (phase7 part2b)
-import { newIdempotencyKey, idempotentJsonHeaders } from '@/lib/idempotency-client'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
@@ -47,11 +45,9 @@ export function useCreatePayment() {
       localCurrency?: string; description?: string
       invoiceRef?: string; arcTxHash?: string
     }) => {
-      // One key per mutate() call: stable for this payment, fresh for the next.
-      const idemKey = newIdempotencyKey()
       const res = await fetch(`${API}/payments`, {
         method: 'POST',
-        headers: idempotentJsonHeaders(idemKey),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ senderAddress: address, ...data }),
       })
       return res.json()

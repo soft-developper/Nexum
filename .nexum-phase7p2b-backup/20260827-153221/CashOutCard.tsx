@@ -1,7 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
-// __NEXUM_IDEMPOTENCY_CLIENT__ (phase7 part2b) stable key across retries
-import { newIdempotencyKey, idempotentJsonHeaders } from '@/lib/idempotency-client'
+import { useState, useEffect, useCallback } from 'react'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import {
   Loader2, AlertCircle, CheckCircle, RefreshCw, Clock, Building2, Smartphone,
@@ -63,10 +61,6 @@ export function CashOutCard({
   const [submitting, setSubmitting] = useState(false)
   const [error,      setError]      = useState<string | null>(null)
   const [transferId, setTransferId] = useState<string | null>(null)
-  // Holds this payout attempt's Idempotency-Key. Minted at submit, reused if
-  // the user retries the SAME payout after an error, cleared on success so a
-  // brand-new payout gets a fresh key.
-  const idemKeyRef = useRef<string | null>(null)
 
   const detailsComplete =
     accountName.trim() && accountNumber.trim() && bankName.trim()
@@ -97,11 +91,10 @@ export function CashOutCard({
   async function submit() {
     if (!address || !picked || !detailsComplete) return
     setSubmitting(true); setError(null)
-    if (!idemKeyRef.current) idemKeyRef.current = newIdempotencyKey()
     try {
       const res = await fetch(`${API}/transfers/cashout`, {
         method: 'POST',
-        headers: idempotentJsonHeaders(idemKeyRef.current),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           walletAddress: address,
           usdcAmount, destCurrency, country,
@@ -117,7 +110,6 @@ export function CashOutCard({
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Could not start the payout'); return }
       setTransferId(data.transferId)
-      idemKeyRef.current = null // success: next payout starts a fresh key
     } catch (err: any) {
       setError(err?.message ?? 'Could not start the payout')
     } finally { setSubmitting(false) }
