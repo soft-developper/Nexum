@@ -411,11 +411,7 @@ export async function getTransferQuote(params: {
 
   // Estimated fee actually charged = amount * bps / 10_000 (no buffer).
   const feeUnits =
-    // __NEXUM_BPS_DECIMAL_FIX__ (part6) bps can be fractional (e.g. 0.5); scale
-    // by round(bps*100)/1_000_000 so BigInt() never sees a non-integer.
-    feeBps > 0
-      ? (amountUnits * BigInt(Math.round(feeBps * 100))) / BigInt(1000000)
-      : BigInt(0)
+    feeBps > 0 ? (amountUnits * BigInt(feeBps)) / BigInt(10000) : BigInt(0)
   const maxFeeUnits = maxFeeFor(amountUnits, feeBps, params.bufferPct ?? 20)
   const receiveUnits =
     amountUnits > feeUnits ? amountUnits - feeUnits : BigInt(0)
@@ -451,11 +447,7 @@ export async function getBothQuotes(params: {
   const build = (mode: TransferMode): TransferQuote => {
     const feeBps = bpsForMode(table, mode)
     const feeUnits =
-      // __NEXUM_BPS_DECIMAL_FIX__ (part6) bps can be fractional (e.g. 0.5); scale
-    // by round(bps*100)/1_000_000 so BigInt() never sees a non-integer.
-    feeBps > 0
-      ? (amountUnits * BigInt(Math.round(feeBps * 100))) / BigInt(1000000)
-      : BigInt(0)
+      feeBps > 0 ? (amountUnits * BigInt(feeBps)) / BigInt(10000) : BigInt(0)
     return {
       mode,
       feeBps,
