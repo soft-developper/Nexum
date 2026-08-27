@@ -20,9 +20,7 @@ import { executeChallenge, executeSigningChallenge, UserCancelledError } from '@
 export { UserCancelledError }
 import { apiFetch } from '@/hooks/useAuth'
 
-// __NEXUM_SIGNING_WATCHER__ exported so the expiry watcher uses the same key
-export const SIGNING_KEY = 'circle_signing'
-const KEY = SIGNING_KEY
+const KEY = 'circle_signing'
 
 export interface SigningSession {
   userToken:     string

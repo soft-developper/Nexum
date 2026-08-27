@@ -13,13 +13,10 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useIdleSignOut } from '@/hooks/useIdleSignOut'
-// __NEXUM_SIGNING_WATCHER__ react to Circle signing-session expiry
-import { useSigningSession } from '@/hooks/useSigningSession'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { account, loading } = useAuth()
   useIdleSignOut()
-  useSigningSession()
   const router   = useRouter()
   const pathname = usePathname()
 

@@ -117,14 +117,7 @@ export function AccountMenu() {
               className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs text-app-text transition-colors hover:bg-app-bg">
               <Wallet className="h-4 w-4 text-app-muted" /> Wallet
             </Link>
-            <button onClick={() => {
-              // __NEXUM_SIGNING_WATCHER__ clear both sessions then hard-refresh,
-              // so every wallet-gated surface goes back to its signed-out state
-              // at once rather than lingering until the next navigation.
-              setOpen(false)
-              clearSigningSession()
-              void signOut().finally(() => { window.location.href = '/signin' })
-            }} role="menuitem"
+            <button onClick={() => { setOpen(false); clearSigningSession(); void signOut() }} role="menuitem"
               className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs text-red-400 transition-colors hover:bg-red-900/15">
               <LogOut className="h-4 w-4" /> Sign out
             </button>

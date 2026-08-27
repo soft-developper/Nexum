@@ -45,8 +45,6 @@ import { startInvoiceReminders }  from './jobs/invoiceReminders'
 import { startP2PReleaseWatcher } from './jobs/p2pReleaseWatcher'
 import { startTreasuryChecker }   from './jobs/treasuryChecker'
 import { startTxSettler }         from './jobs/txSettler'
-// __NEXUM_MONITOR_WIRED__ (phase7) money-flow monitoring + alerting
-import { startMonitor }           from './jobs/monitor'
 import { startDutyScheduler }     from './jobs/dutyScheduler'
 import { seedSuperAdmin }         from './lib/seedAdmin'
 
@@ -100,7 +98,6 @@ app.listen(PORT, async () => {
   console.log(`\n🚀  AfriFX API · http://localhost:${PORT}`)
   await seedSuperAdmin()
   startRatePoller()
-  startMonitor()
   startEventListener()
   startP2PReleaseWatcher()
 startInvoiceReminders()
