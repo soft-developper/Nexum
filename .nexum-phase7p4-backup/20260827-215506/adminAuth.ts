@@ -3,8 +3,6 @@ import { db }     from '../db/client'
 import { sql }    from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import QRCode from 'qrcode'
-// __NEXUM_RATELIMIT_WIRED__ (phase7) brute-force protection on admin auth
-import { authRateLimiter } from '../middleware/rateLimit'
 import {
   hashPassword, verifyPassword, validatePassword,
   createSession, validateSession, destroySession,
@@ -107,7 +105,7 @@ router.post('/setup', async (req, res) => {
 
 // ── Login ───────────────────────────────────────────────────
 // POST /admin-auth/login
-router.post('/login', authRateLimiter, async (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password, totpCode } = req.body
   const ip = req.ip
 
@@ -265,7 +263,7 @@ router.post('/2fa/verify', requireAdmin, async (req: any, res) => {
 
 // ── Forgot password ─────────────────────────────────────────
 // POST /admin-auth/forgot-password
-router.post('/forgot-password', authRateLimiter, async (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'email required' })
 
@@ -302,7 +300,7 @@ router.post('/forgot-password', authRateLimiter, async (req, res) => {
 })
 
 // POST /admin-auth/reset-password
-router.post('/reset-password', authRateLimiter, async (req, res) => {
+router.post('/reset-password', async (req, res) => {
   const { token, password } = req.body
   if (!token || !password) return res.status(400).json({ error: 'token and password required' })
 

@@ -23,8 +23,6 @@ import {
 import {
   createSession, revokeSession, requireAccount, bearerFrom,
 } from '../lib/accountAuth'
-// __NEXUM_RATELIMIT_WIRED__ (phase7) tight auth + txn limits
-import { authRateLimiter, txnRateLimiter } from '../middleware/rateLimit'
 import {
   initializeUserWallet, listUserWallets, pickPrimaryWallet, addUserWalletChains,
   getPrimaryWalletId, getTokenId, createTransfer, getTransaction, findRecentTransfer,
@@ -134,7 +132,7 @@ router.post('/circle/device-token', async (req, res) => {
 })
 
 // POST /auth/circle/email-otp      { deviceId, email }
-router.post('/circle/email-otp', authRateLimiter, async (req, res) => {
+router.post('/circle/email-otp', async (req, res) => {
   const { deviceId, email } = req.body ?? {}
   if (!deviceId) return res.status(400).json({ error: 'deviceId is required' })
 
@@ -263,7 +261,7 @@ async function resolveTransferWallet(
 }
 
 // POST /auth/wallet/tx/transfer  { userToken, to, amount }
-router.post('/wallet/tx/transfer', requireAccount, txnRateLimiter, async (req, res) => {
+router.post('/wallet/tx/transfer', requireAccount, async (req, res) => {
   const { userToken, to, amount, chainKey } = req.body ?? {}
   if (!userToken) return res.status(400).json({ error: 'userToken is required' })
   if (!/^0x[a-fA-F0-9]{40}$/.test(String(to ?? ''))) {
@@ -349,7 +347,7 @@ router.get(
 // it to Circle's blockchain code and to the wallet id on that chain. Returns a
 // challengeId the browser executes. A 409 with code NEEDS_CHAIN means the
 // user's wallet isn't on that chain yet.
-router.post('/wallet/tx/contract', requireAccount, txnRateLimiter, async (req, res) => {
+router.post('/wallet/tx/contract', requireAccount, async (req, res) => {
   const {
     userToken, chainKey, contractAddress,
     abiFunctionSignature, abiParameters, feeLevel,
@@ -520,7 +518,7 @@ router.get('/available', async (req, res) => {
 // Details (username, name) are collected afterwards, once they have a
 // wallet, so the first screen asks for nothing but a sign-in method.
 // ══════════════════════════════════════════════════════════
-router.post('/session', authRateLimiter, async (req, res) => {
+router.post('/session', async (req, res) => {
   const { userToken, email, name } = req.body ?? {}
 
   let circleUser
