@@ -6,8 +6,6 @@ import { securityHeaders }        from './middleware/security'
 import { corsMiddleware }         from './middleware/cors'
 import { rateLimitMiddleware }    from './middleware/rateLimit'
 import { errorHandler }           from './middleware/errorHandler'
-// __NEXUM_OBSERVABILITY_WIRED__ (phase7)
-import { installGlobalErrorCapture, log } from './lib/logger'
 import authRouter                 from './routes/auth'
 import ratesRouter                from './routes/rates'
 import transactionsRouter         from './routes/transactions'
@@ -48,7 +46,6 @@ import { startTxSettler }         from './jobs/txSettler'
 import { startDutyScheduler }     from './jobs/dutyScheduler'
 import { seedSuperAdmin }         from './lib/seedAdmin'
 
-installGlobalErrorCapture()
 const app  = express()
 const PORT = Number(process.env.PORT ?? 4000)
 

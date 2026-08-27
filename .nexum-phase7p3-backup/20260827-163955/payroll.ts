@@ -2,8 +2,6 @@ import { Router }     from 'express'
 import { db }         from '../db/client'
 import { sql }        from 'drizzle-orm'
 import { randomUUID, createHash } from 'crypto'  // PHASE_7F: createHash for deterministic idempotency UUID
-// __NEXUM_OBSERVABILITY_WIRED__ (phase7) surface swallowed payout failures
-import { captureException } from '../lib/logger'
 
 const router = Router()
 
@@ -352,8 +350,7 @@ router.post('/batches/:id/execute', async (req, res) => {
     await db.run(sql`UPDATE payroll_batches SET status = 'processing' WHERE id = ${batchId}`)
 
     // Fire and forget: the client polls the batch for progress.
-    runBatchPayout(batchId).catch(err =>
-      captureException(err, { scope: 'payroll.runBatchPayout', batchId }))
+    runBatchPayout(batchId).catch(() => {})
 
     res.json({ status: 'processing', owed, balance })
   } catch (err: any) {
