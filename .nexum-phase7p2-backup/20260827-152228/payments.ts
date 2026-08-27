@@ -4,8 +4,6 @@ import { db }         from '../db/client'
 import { sql }        from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { getCachedRates } from '../services/rateOracle'
-// __NEXUM_IDEMPOTENCY_WIRED__ (phase7) request-level idempotency
-import { withIdempotency } from '../middleware/idempotency'
 
 const router = Router()
 
@@ -56,7 +54,7 @@ router.get('/', async (req, res) => {
 })
 
 // POST /payments record a payment
-router.post('/', withIdempotency('payments.create'), async (req, res) => {
+router.post('/', async (req, res) => {
   const {
     senderAddress, recipientAddress, amount,
     currency = 'USDC', localCurrency, description,

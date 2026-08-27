@@ -19,8 +19,6 @@ import { getTransfer, getLegs, listTransfersBySender } from '../services/ramp/re
 import { getProvider, listProviders } from '../services/ramp/registry'
 import { compareProviders, providerCapabilities } from '../services/ramp/compare'
 import { startCashOut } from '../services/cashout'
-// __NEXUM_IDEMPOTENCY_WIRED__ (phase7) request-level idempotency
-import { withIdempotency } from '../middleware/idempotency'
 import { flutterwaveConfigured } from '../services/ramp/providers/flutterwave-auth'
 import type { SenderMode, PayoutMethod, ChainKey } from '../services/ramp/types'
 import {
@@ -118,7 +116,7 @@ router.post('/quotes', async (req, res) => {
   knowing where to send it. Refusing up front is far better than accepting the
   USDC and discovering the gap afterwards.
 */
-router.post('/cashout', withIdempotency('transfers.cashout'), async (req, res) => {
+router.post('/cashout', async (req, res) => {
   try {
     const result = await startCashOut(req.body)
     if (!result.ok) {
@@ -138,7 +136,7 @@ router.post('/cashout', withIdempotency('transfers.cashout'), async (req, res) =
 })
 
 // ── Start a transfer ───────────────────────────────────────
-router.post('/', withIdempotency('transfers.create'), async (req, res) => {
+router.post('/', async (req, res) => {
   const {
     senderAddress, senderMode,
     sourceCurrency, sourceAmount,
