@@ -6,9 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "lint": "next lint"
   },
   "dependencies": {
     "@circle-fin/w3s-pw-web-sdk": "^1.1.10",
@@ -39,7 +37,6 @@
     "autoprefixer": "^10",
     "postcss": "^8",
     "tailwindcss": "^3",
-    "typescript": "^5",
-    "vitest": "^2.1.9"
+    "typescript": "^5"
   }
 }
