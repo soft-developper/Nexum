@@ -122,6 +122,9 @@ export function useCompleteBridge() {
         await recordCompleted(tx)
         setMintTx(tx); setStep('done'); setNote(null)
       } catch (mintErr: any) {
+        // __NEXUM_MINT_RETRY_FIX__ distinguish a submission failure (valid
+        // attestation, mint call itself failed) from a genuinely expired
+        // attestation. Only the latter is helped by reattestation.
         const m = mintErr?.message ?? ''
 
         // Idempotent success: the mint already landed.
@@ -135,14 +138,35 @@ export function useCompleteBridge() {
           throw mintErr
         }
 
-        // Otherwise attempt ONE reattest cycle. This covers an expired
-        // attestation and transient revert; if the mint truly can't proceed
-        // the second attempt surfaces the real error.
+        // Is the attestation ACTUALLY expired, or is it still valid and the mint
+        // submission itself failed? Re-fetch and check. If Circle still returns
+        // it as complete, reattesting is pointless - the real problem is the
+        // mint call (gas on the destination, wrong contract, or a Circle-side
+        // rejection), and we must surface THAT error, not hide it behind a
+        // reattest that can never help.
+        setNote('Checking whether the attestation is still valid...')
+        const recheck = await fetchAttestation(irisBase(), from.domain, bridge.burn_tx!)
+        const stillValid =
+          recheck.status === 'complete' && !!recheck.message && !!recheck.attestation
+
+        if (stillValid) {
+          // The message is mint-ready; the failure is in submission. Surface
+          // Circle's real error so it is diagnosable instead of misreported.
+          console.error('[bridge] mint failed with a VALID attestation:', mintErr)
+          throw new Error(
+            'The transfer is attested and ready, but the mint could not be ' +
+            'submitted on ' + to.name + '. This is usually gas on the ' +
+            'destination or a temporary Circle issue - your funds are safe. ' +
+            'Details: ' + (m || 'unknown error'))
+        }
+
+        // Genuinely not complete anymore -> the attestation expired. NOW a
+        // reattest cycle is the correct remedy.
         const nonce = currentAtt.nonce ?? currentAtt.eventNonce
         if (!nonce) throw mintErr
 
         setStep('reattesting')
-        setNote('Attestation may have expired - requesting a fresh one from Circle...')
+        setNote('The attestation expired - requesting a fresh one from Circle...')
         const ok = await reattest(irisBase(), nonce)
         if (!ok) {
           throw new Error(
