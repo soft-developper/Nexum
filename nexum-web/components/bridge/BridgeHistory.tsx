@@ -60,15 +60,11 @@ export function BridgeHistory() {
     if (finish.step === 'done') { load(); finish.reset() }
   }, [finish.step, load, finish])
 
-  // Poll while anything is still moving, so a completed mint appears without a
-  // manual refresh.
-  useEffect(() => {
-    const pending = rows.some(r =>
-      ['attesting', 'minting', 'stranded', 'burning'].includes(r.status))
-    if (!pending) return
-    const t = setInterval(load, 20_000)
-    return () => clearInterval(t)
-  }, [rows, load])
+  // __NEXUM_NO_AUTO_REFRESH__ interval-based auto-refresh removed - it
+  // refetched the whole history every 20s and burdened the API. History
+  // now updates on the manual Refresh button and on the completion trigger
+  // above (finish.step === 'done'), which fires exactly when a mint is
+  // confirmed on the destination. The live steps poll themselves.
 
   const pg = usePaged(rows, 20)
 

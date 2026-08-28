@@ -29,7 +29,7 @@ interface Pending {
   burn_tx?: string | null
 }
 
-const POLL_MS = 30_000
+// __NEXUM_NO_AUTO_REFRESH__ POLL_MS removed with the repeating interval.
 
 export function useAttestationStatus(pending: Pending[]) {
   const [status, setStatus] = useState<Record<string, AttestState>>({})
@@ -57,10 +57,11 @@ export function useAttestationStatus(pending: Pending[]) {
     setStatus(s => ({ ...s, ...next }))
   }, [])
 
+  // __NEXUM_NO_AUTO_REFRESH__ run once on mount; no repeating interval.
+  // Callers refresh explicitly via the returned `refresh` (manual button)
+  // or when a completion event lands. This stops per-row Circle polling.
   useEffect(() => {
     check()
-    const t = setInterval(check, POLL_MS)
-    return () => clearInterval(t)
   }, [check])
 
   return { status, refresh: check }
