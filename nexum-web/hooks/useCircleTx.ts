@@ -308,7 +308,15 @@ export async function executeContractCall(
 
     const tx = await r2.json().catch(() => ({}))
     if (DONE.includes(tx.state))   return { txHash: tx.txHash, state: tx.state }
-    if (FAILED.includes(tx.state)) throw new Error(`Transaction ${String(tx.state).toLowerCase()}`)
+    if (FAILED.includes(tx.state)) {
+      // __NEXUM_SURFACE_MINT_ERROR__ include Circle's real reason so callers can
+      // recognize e.g. 'Nonce already used' (mint already completed). Fall back to
+      // the bare state only when no detail is available.
+      const detail = tx.errorDetails ?? tx.errorReason ?? ''
+      throw new Error(
+        detail ? `Transaction ${String(tx.state).toLowerCase()}: ${detail}`
+               : `Transaction ${String(tx.state).toLowerCase()}`)
+    }
 
     // Once we have a hash it's on-chain, even if Circle hasn't marked it
     // COMPLETE yet. Return it rather than making the caller wait.

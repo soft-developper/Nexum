@@ -274,6 +274,11 @@ export interface CircleTransaction {
   txHash?:     string
   blockchain?: string
   amounts?:    string[]
+  // __NEXUM_SURFACE_MINT_ERROR__ carry Circle's failure reason so the client
+  // can recognize 'Nonce already used' (an already-completed mint) instead of
+  // reporting a generic failure.
+  errorReason?:  string
+  errorDetails?: string
 }
 
 /** Read a transaction back by its Circle transaction id. */
@@ -331,6 +336,8 @@ export async function findRecentTransfer(params: {
     txHash:     match.txHash,
     blockchain: match.blockchain,
     amounts:    match.amounts,
+    errorReason:  match.errorReason,   // __NEXUM_SURFACE_MINT_ERROR__
+    errorDetails: match.errorDetails,
   }
 }
 
@@ -485,6 +492,8 @@ export async function findContractExecution(params: {
     txHash:     match.txHash,
     blockchain: match.blockchain,
     amounts:    match.amounts,
+    errorReason:  match.errorReason,   // __NEXUM_SURFACE_MINT_ERROR__
+    errorDetails: match.errorDetails,
   }
 }
 
