@@ -48,3 +48,10 @@ coverage/
 
 # Misc
 .turbo/
+
+# nexum backup artifacts (never commit deploy-script backups)
+*.bak
+*.bak.*
+*.orig
+.nexum-*-backup/
+.*-backup/

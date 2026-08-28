@@ -29,13 +29,14 @@ export function LandingRates() {
           {rates.map((r) => {
             const ccy = r.pair.split('/')[0]
             const up = (r.change24h ?? 0) >= 0
+            // __NEXUM_RATES_MOBILE_FIX__ gap + shrink control so pair and rate never overlap on mobile
             return (
-              <div key={r.pair} className="flex items-center justify-between rounded-xl bg-app-bg/60 px-3 py-2.5">
-                <span className="flex items-center gap-2">
-                  <span className="text-lg leading-none">{FLAG[ccy as keyof typeof FLAG] ?? '💱'}</span>
-                  <span className="text-sm font-medium text-app-text">{r.pair}</span>
+              <div key={r.pair} className="flex items-center justify-between gap-2 rounded-xl bg-app-bg/60 px-3 py-2.5">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 text-lg leading-none">{FLAG[ccy as keyof typeof FLAG] ?? '💱'}</span>
+                  <span className="truncate text-sm font-medium text-app-text">{r.pair}</span>
                 </span>
-                <span className="text-right">
+                <span className="shrink-0 whitespace-nowrap text-right">
                   <span className="block font-mono text-sm text-app-text">
                     {(r.rate ?? 0).toLocaleString(undefined, { maximumFractionDigits: 3 })}
                   </span>
