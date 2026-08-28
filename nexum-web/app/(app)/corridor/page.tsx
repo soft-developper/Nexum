@@ -24,7 +24,7 @@ function CorridorPageInner() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-app-text">Cross-border corridor</h1>
         <p className="text-sm text-app-muted">
-          Send between African currencies in two steps via USDC.
+          Send between global currencies in two steps via USDC.
           Both legs settle on Arc in under 1 second each.
         </p>
       </div>
@@ -61,3 +61,4 @@ export default function CorridorPage() {
     </SectionGuard>
   )
 }
+// __NEXUM_GLOBAL_META__

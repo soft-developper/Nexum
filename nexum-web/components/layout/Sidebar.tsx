@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ArrowDownUp, Send, History, LayoutDashboard,
-  TrendingUp, Globe, Store, ClipboardList, User,
+  Globe, Store, ClipboardList, User,
   Wallet, Building2, Shield, FileText, BarChart3,
   CreditCard,
 } from 'lucide-react'
@@ -35,9 +35,7 @@ const nav = [
     { href: '/history',   icon: History,         label: 'History'   },
     { href: '/profile',   icon: User,            label: 'Profile'   },
   ]},
-  { label: 'Market', items: [
-    { href: '/rates', icon: TrendingUp, label: 'Live rates' },
-  ]},
+  // __NEXUM_MARKET_REMOVED__ Market nav group removed; live rates live on the landing page.
 ]
 
 export function Sidebar() {

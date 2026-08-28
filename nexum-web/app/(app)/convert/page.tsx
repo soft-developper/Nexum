@@ -23,7 +23,7 @@ function ConvertPageInner() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-app-text">Trade</h1>
         <p className="text-sm text-app-muted">
-          Live rates between USDC and 13 African currencies. To receive local
+          Live rates between USDC and 160+ global currencies. To receive local
           currency, cash out to a bank account or trade peer-to-peer.
         </p>
       </div>
@@ -41,3 +41,4 @@ export default function ConvertPage() {
     </SectionGuard>
   )
 }
+// __NEXUM_GLOBAL_META__
