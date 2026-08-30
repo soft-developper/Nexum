@@ -76,7 +76,7 @@ export function ProfileSetupClient() {
       // This means ProfileGuard sees the profile IMMEDIATELY
       // when the router navigates no refetch race condition.
       const now = Math.floor(Date.now() / 1000)
-      queryClient.setQueryData(['profile', address], {
+      queryClient.setQueryData(['profile', 'me', address], {
         wallet_address:  address.toLowerCase(),
         username:        username.toLowerCase(),
         display_name:    displayName.trim(),

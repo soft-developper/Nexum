@@ -5,6 +5,8 @@ import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import { useProfile } from '@/hooks/useProfile'
 import { useQueryClient } from '@tanstack/react-query'
 import { ProfileAvatar } from '@/components/profile/ProfileAvatar'
+import { CountryCombobox } from '@/components/profile/CountryCombobox'
+import { countryName, countryFlag } from '@/lib/countries'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,8 +14,19 @@ import { ClientOnly } from '@/components/ui/client-only'
 import {
   Twitter, AtSign, Edit2, CheckCircle,
   Loader2, ExternalLink, Star, ShieldCheck,
-  TrendingUp, AlertTriangle, Copy, Check,
+  TrendingUp, AlertTriangle, Copy, Check, Lock,
 } from 'lucide-react'
+
+const GENDER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'male',              label: 'Male' },
+  { value: 'female',            label: 'Female' },
+  { value: 'non_binary',        label: 'Non-binary' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+]
+
+function genderLabel(v: string | null | undefined): string {
+  return GENDER_OPTIONS.find((g) => g.value === v)?.label ?? ''
+}
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
@@ -41,6 +54,10 @@ function ProfileContent() {
   const [twitter,     setTwitter]     = useState('')
   const [telegram,    setTelegram]    = useState('')
   const [showSocials, setShowSocials] = useState(true)
+  const [dob,         setDob]         = useState('')
+  const [nationality, setNationality] = useState('')
+  const [gender,      setGender]      = useState('')
+  const [location,    setLocation]    = useState('')
   const [saving,      setSaving]      = useState(false)
   const [copied,      setCopied]      = useState(false)
 
@@ -51,6 +68,10 @@ function ProfileContent() {
     setTwitter(profile.twitter_handle ?? '')
     setTelegram(profile.telegram_handle ?? '')
     setShowSocials(profile.show_socials)
+    setDob(profile.date_of_birth ?? '')
+    setNationality(profile.nationality ?? '')
+    setGender(profile.gender ?? '')
+    setLocation(profile.location ?? '')
     setEditing(true)
   }
 
@@ -64,9 +85,10 @@ function ProfileContent() {
         body: JSON.stringify({
           displayName, bio,
           twitterHandle: twitter, telegramHandle: telegram, showSocials,
+          dateOfBirth: dob, nationality, gender, location,
         }),
       })
-      await queryClient.invalidateQueries({ queryKey: ['profile', address] })
+      await queryClient.invalidateQueries({ queryKey: ['profile', 'me', address] })
       await refetch()
       setEditing(false)
     } finally { setSaving(false) }
@@ -171,6 +193,83 @@ function ProfileContent() {
           ) : profile.bio ? (
             <p className="mb-4 text-center text-sm text-app-muted">{profile.bio}</p>
           ) : null}
+
+          {/* Personal details - PRIVATE, owner-only. Never shown on the public
+              profile (the API strips these fields for everyone but the owner). */}
+          {editing ? (
+            <div className="mb-4 space-y-3 rounded-lg border border-app-border bg-app-bg/50 p-3">
+              <div className="flex items-center gap-1.5 text-[11px] text-app-muted">
+                <Lock className="h-3 w-3" />
+                Private - only visible to you
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-app-muted">Date of birth</label>
+                <Input type="date" value={dob}
+                  onChange={e => setDob(e.target.value)} className="text-sm" />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-app-muted">Nationality</label>
+                <CountryCombobox value={nationality} onChange={setNationality} />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-app-muted">Gender</label>
+                <select value={gender} onChange={e => setGender(e.target.value)}
+                  className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none hover:border-app-accent/50 focus:ring-1 focus:ring-app-accent">
+                  <option value="">Prefer not to say</option>
+                  {GENDER_OPTIONS.map(g => (
+                    <option key={g.value} value={g.value}>{g.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-app-muted">Location</label>
+                <Input value={location} maxLength={80}
+                  onChange={e => setLocation(e.target.value)}
+                  placeholder="City or region" className="text-sm" />
+              </div>
+            </div>
+          ) : (
+            (profile.date_of_birth || profile.nationality || profile.gender || profile.location) && (
+              <div className="mb-4 space-y-2 rounded-lg border border-app-border bg-app-bg/50 p-3">
+                <div className="flex items-center gap-1.5 text-[11px] text-app-muted">
+                  <Lock className="h-3 w-3" />
+                  Private - only visible to you
+                </div>
+                <dl className="space-y-1.5 text-xs">
+                  {profile.age != null && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-app-muted">Age</dt>
+                      <dd className="text-app-text">{profile.age}</dd>
+                    </div>
+                  )}
+                  {profile.nationality && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-app-muted">Nationality</dt>
+                      <dd className="text-app-text">
+                        {countryFlag(profile.nationality)} {countryName(profile.nationality)}
+                      </dd>
+                    </div>
+                  )}
+                  {profile.gender && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-app-muted">Gender</dt>
+                      <dd className="text-app-text">{genderLabel(profile.gender)}</dd>
+                    </div>
+                  )}
+                  {profile.location && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-app-muted">Location</dt>
+                      <dd className="truncate text-app-text">{profile.location}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            )
+          )}
 
           {/* Wallet address */}
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-app-bg px-3 py-2">
