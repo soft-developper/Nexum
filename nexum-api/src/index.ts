@@ -35,6 +35,7 @@ import { startBridgeReconciler }   from './services/bridge/reconciler'
 import { bridgeXyzConfigured, BRIDGE_IS_SANDBOX } from './services/bridgexyz/client'
 import { startSendReconciler } from './services/sendReconciler'
 import { ensureTransactionsSchema } from './services/ensureTransactionsSchema'
+import { ensureProfileDetailsSchema } from './services/ensureProfileDetailsSchema'
 import { ensureOfframpSchema } from './services/bridgexyz/ensureOfframp'
 import { maintenanceGuard }       from './lib/maintenance'
 import contentRouter              from './routes/content'
@@ -115,6 +116,10 @@ startAdminAuditSummary()
 
   // Self-heal transactions.from_chain (migrations 0022/0023 did not run on prod).
   await ensureTransactionsSchema()
+
+  // Self-heal profiles detail columns (Part 1 profile fields; Turso may not
+  // run migration 0027 on prod).
+  await ensureProfileDetailsSchema()
   startBridgeReconciler()
   startSendReconciler()
 
