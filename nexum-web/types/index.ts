@@ -90,4 +90,11 @@ export interface UserProfile {
   updated_at:      number
   maker_trades?:   number
   taker_trades?:   number
+  // Owner-only detail fields. Present only on the owner's own profile
+  // (GET /profile/me); the public routes strip them, so they are optional.
+  date_of_birth?:  string | null   // ISO YYYY-MM-DD
+  nationality?:    string | null   // ISO 3166-1 alpha-2
+  gender?:         string | null   // male | female | non_binary | prefer_not_to_say
+  location?:       string | null   // city/region free text
+  age?:            number | null   // derived from date_of_birth, owner view only
 }

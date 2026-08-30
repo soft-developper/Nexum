@@ -1,18 +1,21 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
+import { apiFetch } from '@/hooks/useAuth'
 import type { UserProfile } from '@/types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
-// Fetch current user's profile
+// Fetch current user's OWN profile via the authenticated owner endpoint.
+// /profile/me returns the owner-only fields (DOB, nationality, gender,
+// location, age) that the public routes strip. Still gated on having a
+// wallet address so it only fires once the account is fully provisioned.
 export function useProfile() {
   const { address } = useAccount()
   return useQuery<UserProfile | null>({
-    queryKey:  ['profile', address],
+    queryKey:  ['profile', 'me', address],
     queryFn:   async () => {
-      if (!address) return null
-      const res = await fetch(`${API}/profile/wallet/${address}`)
+      const res = await apiFetch('/profile/me')
       if (res.status === 404) return null
       if (!res.ok) throw new Error('Failed to fetch profile')
       return res.json()
