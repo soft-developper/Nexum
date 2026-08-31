@@ -22,7 +22,9 @@ import {
 } from '../services/circleAuth'
 import {
   createSession, revokeSession, requireAccount, bearerFrom,
+  revokeSessionById, revokeOtherSessions, listSessions,
 } from '../lib/accountAuth'
+import { cityFromIp } from '../services/geoip'
 // __NEXUM_RATELIMIT_WIRED__ (phase7) tight auth + txn limits
 import { authRateLimiter, txnRateLimiter } from '../middleware/rateLimit'
 import {
@@ -579,8 +581,13 @@ router.post('/session', authRateLimiter, async (req, res) => {
     // OAuth response it happens on a later visit once the address exists.
     await maybeSendWelcome(String(account.id))
 
+    // Resolve an approximate city for the sessions/devices list. Best-effort:
+    // cityFromIp has its own timeout and never throws, so login is never blocked
+    // or failed by the lookup (returns null on any problem).
+    const city = await cityFromIp(req.ip)
+
     const session = await createSession(
-      String(account.id), req.ip, req.headers['user-agent'] as string)
+      String(account.id), req.ip, req.headers['user-agent'] as string, city)
 
     res.json({
       account,
@@ -614,6 +621,44 @@ router.post('/logout', async (req, res) => {
   if (token) await revokeSession(token).catch(() => {})
   // Always 200: logging out should never fail from the caller's view.
   res.json({ success: true })
+})
+
+// ═════════════════════════════
+// SESSIONS / DEVICES (Part 2)
+// A signed-in user can see their active sessions and revoke them.
+// ═════════════════════════════
+
+// GET /auth/sessions - list the caller's own live sessions.
+router.get('/sessions', requireAccount, async (req, res) => {
+  const token = bearerFrom(req)
+  if (!token) return res.status(401).json({ error: 'Not signed in', code: 'no_session' })
+  try {
+    const sessions = await listSessions(String((req as any).account.id), token)
+    res.json({ sessions })
+  } catch (e: any) { res.status(500).json({ error: e.message }) }
+})
+
+// POST /auth/sessions/revoke  { id } - revoke ONE of the caller's sessions.
+// Revoking the current session is allowed (the client then signs out locally).
+router.post('/sessions/revoke', requireAccount, async (req, res) => {
+  const { id } = req.body ?? {}
+  if (!id) return res.status(400).json({ error: 'id is required' })
+  try {
+    const ok = await revokeSessionById(String((req as any).account.id), String(id))
+    if (!ok) return res.status(404).json({ error: 'Session not found' })
+    res.json({ success: true })
+  } catch (e: any) { res.status(500).json({ error: e.message }) }
+})
+
+// POST /auth/sessions/revoke-others - revoke all the caller's sessions except
+// the current one ("sign out all other devices").
+router.post('/sessions/revoke-others', requireAccount, async (req, res) => {
+  const token = bearerFrom(req)
+  if (!token) return res.status(401).json({ error: 'Not signed in', code: 'no_session' })
+  try {
+    await revokeOtherSessions(String((req as any).account.id), token)
+    res.json({ success: true })
+  } catch (e: any) { res.status(500).json({ error: e.message }) }
 })
 
 export default router

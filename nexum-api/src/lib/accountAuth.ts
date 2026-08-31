@@ -42,7 +42,7 @@ export interface AccountPayload {
 
 /** Issue a new session. Returns the raw token, which is shown to the client once. */
 export async function createSession(
-  accountId: string, ip?: string, ua?: string,
+  accountId: string, ip?: string, ua?: string, city?: string | null,
 ): Promise<{ token: string; expiresAt: number }> {
   const token     = randomBytes(32).toString('hex')
   const now       = Math.floor(Date.now() / 1000)
@@ -50,11 +50,11 @@ export async function createSession(
 
   await db.run(sql`
     INSERT INTO account_sessions
-      (id, account_id, token_hash, ip_address, user_agent,
+      (id, account_id, token_hash, ip_address, user_agent, location_city,
        created_at, expires_at, last_active_at)
     VALUES
       (${randomUUID()}, ${accountId}, ${hashToken(token)},
-       ${ip ?? null}, ${ua ?? null}, ${now}, ${expiresAt}, ${now})
+       ${ip ?? null}, ${ua ?? null}, ${city ?? null}, ${now}, ${expiresAt}, ${now})
   `)
 
   return { token, expiresAt }
@@ -75,6 +75,77 @@ export async function revokeAllSessions(accountId: string): Promise<void> {
     UPDATE account_sessions SET revoked_at = ${now}
     WHERE account_id = ${accountId} AND revoked_at IS NULL
   `)
+}
+
+/**
+ * Revoke ONE session by its id, scoped to the owning account so a caller can
+ * never revoke someone else's session. Returns true if a live session was
+ * revoked. Safe to call on an already-revoked or foreign id (returns false).
+ */
+export async function revokeSessionById(accountId: string, sessionId: string): Promise<boolean> {
+  const now = Math.floor(Date.now() / 1000)
+  const rows = parseRows(await db.run(sql`
+    SELECT id FROM account_sessions
+    WHERE id = ${sessionId} AND account_id = ${accountId} AND revoked_at IS NULL
+    LIMIT 1
+  `))
+  if (!rows.length) return false
+  await db.run(sql`
+    UPDATE account_sessions SET revoked_at = ${now}
+    WHERE id = ${sessionId} AND account_id = ${accountId} AND revoked_at IS NULL
+  `)
+  return true
+}
+
+/** Revoke all of an account's live sessions EXCEPT the one presenting currentToken. */
+export async function revokeOtherSessions(accountId: string, currentToken: string): Promise<void> {
+  const now = Math.floor(Date.now() / 1000)
+  await db.run(sql`
+    UPDATE account_sessions SET revoked_at = ${now}
+    WHERE account_id = ${accountId}
+      AND revoked_at IS NULL
+      AND token_hash != ${hashToken(currentToken)}
+  `)
+}
+
+export interface SessionRow {
+  id:             string
+  ip_address:     string | null
+  user_agent:     string | null
+  location_city:  string | null
+  created_at:     number
+  last_active_at: number | null
+  expires_at:     number
+  is_current:     boolean
+}
+
+/**
+ * List an account's LIVE (non-revoked, non-expired) sessions, newest activity
+ * first, marking which one is the caller's current session. Never returns the
+ * token hash.
+ */
+export async function listSessions(accountId: string, currentToken: string): Promise<SessionRow[]> {
+  const now = Math.floor(Date.now() / 1000)
+  const currentHash = hashToken(currentToken)
+  const rows = parseRows(await db.run(sql`
+    SELECT id, token_hash, ip_address, user_agent, location_city,
+           created_at, last_active_at, expires_at
+    FROM account_sessions
+    WHERE account_id = ${accountId}
+      AND revoked_at IS NULL
+      AND expires_at > ${now}
+    ORDER BY last_active_at DESC, created_at DESC
+  `))
+  return rows.map((r: any) => ({
+    id:             String(val(r, 'id', 0)),
+    ip_address:     (val(r, 'ip_address', 2) as string | null) ?? null,
+    user_agent:     (val(r, 'user_agent', 3) as string | null) ?? null,
+    location_city:  (val(r, 'location_city', 4) as string | null) ?? null,
+    created_at:     Number(val(r, 'created_at', 5)),
+    last_active_at: val(r, 'last_active_at', 6) != null ? Number(val(r, 'last_active_at', 6)) : null,
+    expires_at:     Number(val(r, 'expires_at', 7)),
+    is_current:     String(val(r, 'token_hash', 1)) === currentHash,
+  }))
 }
 
 /**

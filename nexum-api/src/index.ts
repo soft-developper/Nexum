@@ -35,6 +35,7 @@ import { startBridgeReconciler }   from './services/bridge/reconciler'
 import { bridgeXyzConfigured, BRIDGE_IS_SANDBOX } from './services/bridgexyz/client'
 import { startSendReconciler } from './services/sendReconciler'
 import { ensureTransactionsSchema } from './services/ensureTransactionsSchema'
+import { ensureSessionLocationSchema } from './services/ensureSessionLocationSchema'
 import { ensureProfileDetailsSchema } from './services/ensureProfileDetailsSchema'
 import { ensureOfframpSchema } from './services/bridgexyz/ensureOfframp'
 import { maintenanceGuard }       from './lib/maintenance'
@@ -54,6 +55,11 @@ import { seedSuperAdmin }         from './lib/seedAdmin'
 installGlobalErrorCapture()
 const app  = express()
 const PORT = Number(process.env.PORT ?? 4000)
+
+// Render (and most hosts) put us behind a reverse proxy, so the real client IP
+// is in X-Forwarded-For. Trust the first proxy hop so req.ip is the client's
+// address, not the proxy's - needed for accurate session device/location.
+app.set('trust proxy', 1)
 
 // Security headers first, so they apply to EVERY response (including errors
 // and CORS preflight failures).
@@ -116,6 +122,10 @@ startAdminAuditSummary()
 
   // Self-heal transactions.from_chain (migrations 0022/0023 did not run on prod).
   await ensureTransactionsSchema()
+
+  // Self-heal account_sessions.location_city (Part 2 sessions/devices; Turso
+  // may not run the migration on prod).
+  await ensureSessionLocationSchema()
 
   // Self-heal profiles detail columns (Part 1 profile fields; Turso may not
   // run migration 0027 on prod).
