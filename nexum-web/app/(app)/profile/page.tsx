@@ -1,5 +1,6 @@
 'use client'
 import { EmailPreferences } from '@/components/notifications/EmailPreferences'
+import { SessionsCard } from '@/components/profile/SessionsCard'
 import { useState } from 'react'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import { useProfile } from '@/hooks/useProfile'
@@ -458,6 +459,9 @@ function ProfileContent() {
 
           {/* Email notification preferences */}
           <EmailPreferences />
+
+          {/* Devices & sessions */}
+          <SessionsCard />
         </div>
       </div>
     </div>
