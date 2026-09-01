@@ -118,49 +118,75 @@ router.patch('/ref/:ref/pay', async (req, res) => {
   const { txHash, payerAddress, status: txStatus, usdcAmount } = req.body
   const now = Math.floor(Date.now() / 1000)
 
-  // Only mark as 'paid' if tx actually succeeded on-chain
-  // txStatus = 'failed' means receipt.status === 'reverted'
-  const invoiceStatus = txStatus === 'failed' ? 'sent' : 'paid' // keep as 'sent' if failed
-  const paidAt        = txStatus === 'failed' ? null : now
-
   try {
+    // Read current state first. Payment status is MONOTONIC: once an invoice is
+    // 'paid' it can never be moved back to 'sent'/'failed' by a later PATCH.
+    // This is what makes the endpoint idempotent and preserves single-payment
+    // integrity even if the client fires a stray 'failed' after a success.
+    const curRows = parseRows(await db.run(
+      sql`SELECT id, creator_address, memo_ref, currency, amount, usdc_amount, status, paid_at
+          FROM invoices WHERE memo_ref = ${req.params.ref} LIMIT 1`))
+    const cur = curRows[0]
+    if (!cur) return res.status(404).json({ error: 'Invoice not found' })
+
+    const alreadyPaid = cur.status === 'paid'
+    const isFailure   = txStatus === 'failed'
+
+    // A failure report NEVER downgrades an already-paid invoice, and never
+    // marks an invoice failed on its own - we simply keep the prior status.
+    // (On-chain revert is surfaced to the payer in the UI; the invoice stays
+    // 'sent' so it can be retried, but a real success is never undone.)
+    if (alreadyPaid) {
+      // Idempotent no-op: record the tx hash if we somehow lacked one, but do
+      // NOT change status, paid_at, or re-fire the paid email.
+      if (txHash) {
+        await db.run(sql`UPDATE invoices SET
+          payment_tx_hash = COALESCE(payment_tx_hash, ${txHash}),
+          updated_at = ${now} WHERE memo_ref = ${req.params.ref}`)
+      }
+      return res.json({ success: true, invoiceStatus: 'paid', idempotent: true })
+    }
+
+    if (isFailure) {
+      // Record the attempt without flipping to 'paid'. Keep status as-is
+      // (pending/sent). Store the failed tx hash for debugging only.
+      await db.run(sql`UPDATE invoices SET
+        payment_tx_hash = COALESCE(${txHash ?? null}, payment_tx_hash),
+        updated_at = ${now} WHERE memo_ref = ${req.params.ref}`)
+      return res.json({ success: true, invoiceStatus: cur.status ?? 'sent' })
+    }
+
+    // ── Genuine success transition: pending/sent -> paid ──
     await db.run(
       sql`UPDATE invoices SET
-            status          = ${invoiceStatus},
+            status          = 'paid',
             payment_tx_hash = COALESCE(${txHash ?? null}, payment_tx_hash),
             payer_address   = COALESCE(${payerAddress?.toLowerCase() ?? null}, payer_address),
             usdc_amount     = COALESCE(${usdcAmount ?? null}, usdc_amount),
-            paid_at         = COALESCE(${paidAt}, paid_at),
+            paid_at         = ${now},
             updated_at      = ${now}
           WHERE memo_ref = ${req.params.ref}`
     )
-    // Email notification on successful payment
-    if (invoiceStatus === 'paid') {
-      try {
-        const _invRows = await db.run(sql`SELECT id, creator_address, memo_ref, currency, amount, usdc_amount FROM invoices WHERE memo_ref = ${req.params.ref} LIMIT 1`)
-        const _inv = parseRows(_invRows)[0]
-        console.log('[Notify] invoice data:', JSON.stringify(_inv))
-        if (_inv) {
-          notifyInvoicePaid({
-            creatorWallet: _inv.creator_address ?? '',
-            payerAddress:  payerAddress ?? '',
-            invoiceRef:    _inv.memo_ref ?? req.params.ref,
-            usdcAmount:    Number(_inv.usdc_amount ?? 0),
-            localAmount:   _inv.amount ? Number(_inv.amount) : undefined,
-            localCcy:      _inv.currency ?? undefined,
-            invoiceId:     _inv.id ?? '',
-            txHash:        txHash ?? '',
-          }).catch((e: any) => console.error('[Notify] invoice_paid:', e.message))
 
-          // The payer's receipt is now sent as a PDF attachment by
-          // notifyInvoicePaid (to both creator and payer), so we no longer
-          // send a separate text receipt email here.
-        }
-      } catch (err: any) { console.error('[Notify] invoice hook error:', err.message) }
-    } else {
-      console.log('[Notify] invoiceStatus not paid:', invoiceStatus)
-    }
-    res.json({ success: true, invoiceStatus })
+    // Email fires exactly once, on the real transition (guarded above by the
+    // alreadyPaid early-return, so repeat calls never re-send).
+    try {
+      const _inv = parseRows(await db.run(sql`SELECT id, creator_address, memo_ref, currency, amount, usdc_amount FROM invoices WHERE memo_ref = ${req.params.ref} LIMIT 1`))[0]
+      if (_inv) {
+        notifyInvoicePaid({
+          creatorWallet: _inv.creator_address ?? '',
+          payerAddress:  payerAddress ?? '',
+          invoiceRef:    _inv.memo_ref ?? req.params.ref,
+          usdcAmount:    Number(_inv.usdc_amount ?? usdcAmount ?? 0),
+          localAmount:   _inv.amount ? Number(_inv.amount) : undefined,
+          localCcy:      _inv.currency ?? undefined,
+          invoiceId:     _inv.id ?? '',
+          txHash:        txHash ?? '',
+        }).catch((e: any) => console.error('[Notify] invoice_paid:', e.message))
+      }
+    } catch (err: any) { console.error('[Notify] invoice hook error:', err.message) }
+
+    res.json({ success: true, invoiceStatus: 'paid' })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
 

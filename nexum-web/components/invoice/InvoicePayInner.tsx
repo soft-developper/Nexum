@@ -13,7 +13,6 @@ import { ConnectButton } from '@/components/wallet/ConnectButton'
 import { formatAmount } from '@/lib/utils'
 import { CONTRACTS, USDC_DECIMALS } from '@/lib/contracts'
 import { USDC_ABI } from '@/lib/usdc'
-import { buildMemoId, buildMemoTransferArgs, MEMO_ADDRESS } from '@/lib/memo'
 import { arcTestnet } from '@/lib/arc-chain'
 import { ensureArcChain } from '@/lib/ensure-arc-chain'
 import { useInvoiceCirclePay, hasCircleSession } from '@/hooks/useInvoiceCirclePay'
@@ -110,35 +109,24 @@ function PayContent() {
       // Make sure the external wallet is on Arc (adds the chain if missing).
       await ensureArcChain(wagmiConfig, currentChainId)
 
-      // Always transfer in USDC regardless of invoice currency
+      // Plain USDC transfer for both EOA and Circle payers. The invoice is
+      // reconciled by its DB memo_ref (matched server-side), so no on-chain
+      // memo is needed here - dropping it removes the Arc memo precompile as a
+      // failure source and keeps the pay path simple and robust.
       const usdcRaw = parseUnits(usdcAmount.toFixed(6), USDC_DECIMALS)
-      const memoId  = buildMemoId(`invoice-${invoice.memo_ref}`)
       const target  = invoice.creator_address as `0x${string}`
 
-      const code = publicClient
-        ? await publicClient.getCode({ address: MEMO_ADDRESS }).catch(() => null)
-        : null
-      const useMemo = !!code && code !== '0x'
-
-      if (useMemo) {
-        const args = buildMemoTransferArgs(
-          CONTRACTS.USDC, target, usdcAmount, USDC_DECIMALS, memoId,
-          { app: 'nexum', type: 'p2p-create', ref: invoice.memo_ref },
-        )
-        hash = await writeContractAsync(args)
-      } else {
-        hash = await writeContractAsync({
-          address:      CONTRACTS.USDC,
-          abi:          USDC_ABI,
-          functionName: 'transfer',
-          args:         [target, usdcRaw],
-        })
-      }
+      hash = await writeContractAsync({
+        address:      CONTRACTS.USDC,
+        abi:          USDC_ABI,
+        functionName: 'transfer',
+        args:         [target, usdcRaw],
+      })
 
       setTxHash(hash)
       setStatus('confirming')
 
-      // Check on-chain status NEVER skip this
+      // On-chain receipt is the SOLE source of truth for success/failure.
       let receiptStatus: 'success' | 'reverted' = 'success'
       if (publicClient) {
         const receipt = await publicClient.waitForTransactionReceipt({ hash })
@@ -146,7 +134,13 @@ function PayContent() {
       }
 
       if (receiptStatus === 'reverted') {
+        // Genuine on-chain failure: no funds moved.
         setStatus('failed')
+        await fetch(`${API}/invoices/ref/${invoice.memo_ref}/pay`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ txHash: hash, status: 'failed' }),
+        }).catch(() => {})
         await createPayment.mutateAsync({
           recipientAddress: invoice.creator_address,
           amount:           usdcAmount,
@@ -160,36 +154,39 @@ function PayContent() {
       }
 
       // ── SUCCESS ────────────────────────────────────────────
-      // Mark invoice paid
+      // Funds have moved. Mark the invoice paid FIRST (authoritative);
+      // everything after is best-effort bookkeeping.
       await fetch(`${API}/invoices/ref/${invoice.memo_ref}/pay`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ txHash: hash, payerAddress: address, usdcAmount }),
-      })
+      }).catch(() => {})
 
-      // Record payment in USDC (actual on-chain amount)
-      await createPayment.mutateAsync({
-        recipientAddress: invoice.creator_address,
-        amount:           usdcAmount,
-        currency:         'USDC',
-        description:      invoice.description ?? invoice.memo_ref,
-        invoiceRef:       invoice.memo_ref,
-        arcTxHash:        hash,
-      })
+      // Record the payment row - NON-FATAL. A failure here must never flip the
+      // UI to "failed" or reverse the paid invoice; money already moved and the
+      // invoice is already marked paid above.
+      try {
+        await createPayment.mutateAsync({
+          recipientAddress: invoice.creator_address,
+          amount:           usdcAmount,
+          currency:         'USDC',
+          description:      invoice.description ?? invoice.memo_ref,
+          invoiceRef:       invoice.memo_ref,
+          arcTxHash:        hash,
+        })
+      } catch (bookErr) {
+        console.error('[invoice] payment record failed (non-fatal):', bookErr)
+      }
 
       setStatus('success')
 
     } catch (err: any) {
+      // Reached only if the tx never confirmed. A confirmed success already
+      // returned above, so we do NOT send a 'failed' PATCH here - that stray
+      // PATCH was what reverted genuinely-paid invoices back to 'sent'.
       const msg = err?.shortMessage ?? err?.message ?? 'Transaction failed'
       setStatus('error')
       setErrMsg(msg)
-      if (hash) {
-        await fetch(`${API}/invoices/ref/${invoice.memo_ref}/pay`, {
-          method:  'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ txHash: hash, status: 'failed' }),
-        }).catch(() => {})
-      }
     }
   }
 

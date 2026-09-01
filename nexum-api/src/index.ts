@@ -35,6 +35,7 @@ import { startBridgeReconciler }   from './services/bridge/reconciler'
 import { bridgeXyzConfigured, BRIDGE_IS_SANDBOX } from './services/bridgexyz/client'
 import { startSendReconciler } from './services/sendReconciler'
 import { ensureTransactionsSchema } from './services/ensureTransactionsSchema'
+import { ensureInvoiceSchema } from './services/ensureInvoiceSchema'
 import { ensureSessionLocationSchema } from './services/ensureSessionLocationSchema'
 import { ensureProfileDetailsSchema } from './services/ensureProfileDetailsSchema'
 import { ensureOfframpSchema } from './services/bridgexyz/ensureOfframp'
@@ -122,6 +123,10 @@ startAdminAuditSummary()
 
   // Self-heal transactions.from_chain (migrations 0022/0023 did not run on prod).
   await ensureTransactionsSchema()
+
+  // Self-heal invoice payment columns (payment_tx_hash, usdc_amount) - the
+  // original invoices table never defined them, which broke invoice pay writes.
+  await ensureInvoiceSchema()
 
   // Self-heal account_sessions.location_city (Part 2 sessions/devices; Turso
   // may not run the migration on prod).
