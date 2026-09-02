@@ -316,7 +316,10 @@ function PayContent() {
         {/* Invoice details */}
         <div className="mb-5 space-y-2 text-xs">
           {[
-            ['From',        invoice.creator_address.slice(0,12) + '…'],
+            ['From',        (invoice as any).creator_username
+                              ? '@' + (invoice as any).creator_username
+                              : ((invoice as any).creator_display_name
+                                  ?? (invoice.creator_address.slice(0,6) + '…' + invoice.creator_address.slice(-4)))],
             ['Description', invoice.description ?? '-'],
             ['Due',         invoice.due_date
               ? new Date(invoice.due_date * 1000).toLocaleDateString()

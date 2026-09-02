@@ -50,11 +50,22 @@ router.get('/', async (req, res) => {
 router.get('/ref/:ref', async (req, res) => {
   try {
     const rows = await db.run(
-      sql`SELECT * FROM invoices WHERE memo_ref = ${req.params.ref} LIMIT 1`
+      sql`SELECT i.*,
+                 p.username     AS creator_username,
+                 p.display_name AS creator_display_name
+          FROM invoices i
+          LEFT JOIN profiles p
+            ON LOWER(p.wallet_address) = LOWER(i.creator_address)
+          WHERE i.memo_ref = ${req.params.ref} LIMIT 1`
     )
     const r = parseRows(rows)
     if (!r.length) return res.status(404).json({ error: 'Invoice not found' })
-    res.json(normInvoice(r[0]))
+    const row: any = r[0]
+    res.json({
+      ...normInvoice(row),
+      creator_username:     row.creator_username ?? null,
+      creator_display_name: row.creator_display_name ?? null,
+    })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
 
