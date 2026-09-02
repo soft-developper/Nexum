@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useAccount, useWriteContract, usePublicClient, useConfig, useChainId } from 'wagmi'
+import { useAccount, useWriteContract, usePublicClient, useConfig, useChainId, useDisconnect } from 'wagmi'
 import { parseUnits } from 'viem'
 import { useInvoiceByRef } from '@/hooks/useInvoices'
 import { useCreatePayment } from '@/hooks/usePayments'
@@ -41,6 +41,7 @@ function PayContent() {
   const router                          = useRouter()
   const { payWithCircle, step: circleStep } = useInvoiceCirclePay()
   const { address, isConnected }         = useAccount()
+  const { disconnect }                    = useDisconnect()
   const publicClient                     = usePublicClient({ chainId: arcTestnet.id })
   const { data: invoice, isLoading }     = useInvoiceByRef(ref as string)
   const { data: rates = [] }             = useFXRates()
@@ -501,6 +502,16 @@ function PayContent() {
                 : ''}
               Memo ref: {invoice.memo_ref}
             </p>
+            {/* Let a connected external wallet switch to the Nexum-wallet option.
+                Without this a hard-connected wallet had no way back to the choice
+                screen. Disconnecting returns to the connect/sign-in options. */}
+            <button
+              onClick={() => disconnect()}
+              disabled={busyPaying}
+              className="mt-3 flex w-full items-center justify-center gap-1 text-xs text-app-muted transition-colors hover:text-app-text disabled:opacity-50"
+            >
+              Disconnect / use a different method
+            </button>
           </>
         )}
       </div>

@@ -11,7 +11,7 @@ import {
 } from '@/lib/circle'
 import { persistSession, useAuth, type Account } from '@/hooks/useAuth'
 import { provisionWallet } from '@/hooks/useWalletProvisioning'
-import { saveSigningSession } from '@/hooks/useCircleTx'
+import { saveSigningSession, getSigningSession } from '@/hooks/useCircleTx'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
@@ -56,9 +56,20 @@ function SignInInner() {
 
   // Already signed in (e.g. opened /signin from a bookmark, or bounced
   // here by the guard after the session was restored): don't ask again.
+  //
+  // BUT a returnTo that needs on-chain SIGNING (invoice pay) requires a live
+  // Circle SIGNING session, not just an app account. A leftover account with no
+  // signing session (e.g. the user is "hard connected" elsewhere, or the Circle
+  // session expired) used to redirect straight back to the pay page, which then
+  // still couldn't pay - the "Circle screen bounces back to the invoice" loop.
+  // For pay destinations, only skip sign-in when a signing session is present;
+  // otherwise stay and let the Circle login run.
+  const needsSigning = returnTo.startsWith('/pay/')
   useEffect(() => {
-    if (!loading && account) router.replace(returnTo)
-  }, [loading, account, router])
+    if (loading || !account) return
+    if (needsSigning && !getSigningSession()) return
+    router.replace(returnTo)
+  }, [loading, account, router, needsSigning])
 
   const reason = useSearchParams().get('reason')
 
