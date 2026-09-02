@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import {
   ArrowDownUp, Send, History, LayoutDashboard,
   Globe, Store, ClipboardList, User,
-  Wallet, Building2, Shield, FileText, BarChart3,
+  Wallet, Building2, Shield, FileText,
   CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -23,7 +23,6 @@ const nav = [
   ]},
   { label: 'Payments', items: [
     { href: '/invoices',    icon: FileText,  label: 'Invoices'    },
-    { href: '/settlements', icon: BarChart3, label: 'Settlements' },
   ]},
   { label: 'Treasury', items: [
     { href: '/treasury',         icon: Building2,  label: 'Treasury' },

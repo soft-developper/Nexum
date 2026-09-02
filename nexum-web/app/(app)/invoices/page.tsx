@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { formatAmount } from '@/lib/utils'
 import {
   Plus, Copy, Check, ExternalLink,
-  FileText, Send, ArrowRight, Loader2,
+  FileText, Send, ArrowRight, Loader2, Download,
 } from 'lucide-react'
 
 const STATUS_BADGE: Record<string, any> = {
@@ -38,6 +38,7 @@ function InvoicesContent() {
   const updateStatus              = useUpdateInvoiceStatus()
   const [copied, setCopied]       = useState<string|null>(null)
   const [filter, setFilter]       = useState('all')
+  const [range,  setRange]        = useState('30')
 
   // Convert any invoice amount to USD using live rates
   function toUSD(amount: number, currency: string): number {
@@ -49,6 +50,39 @@ function InvoicesContent() {
     }
     const rate = rates.find(r => r.pair === `${currency}/USDC`)?.rate
     return rate && rate > 0 ? amount / rate : 0
+  }
+
+  // Export invoices (only) for the selected range as CSV. Filters by created_at.
+  function downloadCSV() {
+    const fromTs = Math.floor(Date.now() / 1000) - Number(range) * 86400
+    const inRange = invoices.filter(i => Number(i.created_at) >= fromTs)
+
+    const esc = (v: any) => {
+      const s = String(v ?? '')
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const rows: string[] = []
+    rows.push('Reference,Amount,Currency,USD value,Counterparty,Date,Status,Tx hash')
+    inRange.forEach(inv => {
+      rows.push([
+        esc(inv.memo_ref),
+        esc(inv.amount),
+        esc(inv.currency),
+        esc(toUSD(inv.amount, inv.currency).toFixed(2)),
+        esc(inv.creator_address),
+        esc(new Date(Number(inv.created_at) * 1000).toISOString()),
+        esc(inv.status),
+        esc(inv.payment_tx_hash ?? ''),
+      ].join(','))
+    })
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `nexum-invoices-${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const filtered = filter === 'all'
@@ -78,9 +112,21 @@ function InvoicesContent() {
             {created.length} created · {received.length} to pay
           </p>
         </div>
-        <Link href="/invoices/create">
-          <Button size="sm"><Plus className="h-4 w-4" /> New invoice</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <select value={range} onChange={e => setRange(e.target.value)}
+            className="rounded-lg border border-app-border bg-app-surface px-3 py-1.5 text-xs text-app-text outline-none">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="365">Last year</option>
+          </select>
+          <Button size="sm" variant="outline" onClick={downloadCSV} disabled={invoices.length === 0}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Link href="/invoices/create">
+            <Button size="sm"><Plus className="h-4 w-4" /> New invoice</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Summary cards */}
