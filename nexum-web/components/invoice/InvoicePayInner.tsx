@@ -16,6 +16,7 @@ import { USDC_ABI } from '@/lib/usdc'
 import { arcTestnet } from '@/lib/arc-chain'
 import { ensureArcChain } from '@/lib/ensure-arc-chain'
 import { useInvoiceCirclePay, hasCircleSession } from '@/hooks/useInvoiceCirclePay'
+import { useAuth } from '@/hooks/useAuth'
 import {
   FileText, CheckCircle, AlertCircle,
   Loader2, ExternalLink, Wallet, XCircle,
@@ -41,6 +42,8 @@ function PayContent() {
   const router                          = useRouter()
   const { payWithCircle, step: circleStep } = useInvoiceCirclePay()
   const { address, isConnected }         = useAccount()
+  const { account }                       = useAuth()
+  const circleAddress                     = account?.walletAddress ?? null
   const { disconnect }                    = useDisconnect()
   const publicClient                     = usePublicClient({ chainId: arcTestnet.id })
   const { data: invoice, isLoading }     = useInvoiceByRef(ref as string)
@@ -125,12 +128,20 @@ function PayContent() {
 
   const alreadyPaid  = invoice.status === 'paid'
   const isCancelled  = invoice.status === 'cancelled'
-  const isCreator    = address?.toLowerCase() === invoice.creator_address.toLowerCase()
+  // A creator can pay with an external wallet OR their signed-in Nexum (Circle)
+  // wallet, so "is this the creator?" must check BOTH addresses. Previously it
+  // only checked the external wagmi address, so a creator signed into Nexum
+  // (whose external address is empty) slipped through and could pay their own
+  // invoice from the same account.
+  const creatorLc    = invoice.creator_address.toLowerCase()
+  const isCreator    = address?.toLowerCase() === creatorLc
+                       || circleAddress?.toLowerCase() === creatorLc
   const wrongPayer   = invoice.payer_address &&
     address?.toLowerCase() !== invoice.payer_address.toLowerCase()
 
   async function handlePay() {
     if (!address || !isConnected || !invoice || usdcAmount <= 0) return
+    if (isCreator) { setStatus('error'); setErrMsg('You created this invoice - you cannot pay it from the same account.'); return }
     setStatus('submitting')
     setErrMsg(null)
     setTxHash(null)
@@ -224,6 +235,7 @@ function PayContent() {
 
   async function handlePayWithCircle() {
     if (!invoice || usdcAmount <= 0) return
+    if (isCreator) { setStatus('error'); setErrMsg('You created this invoice - you cannot pay it from the same account.'); return }
     setStatus('submitting'); setErrMsg(null); setTxHash(null)
     try {
       const target = invoice.creator_address as string
@@ -430,7 +442,7 @@ function PayContent() {
 
         ) : isCreator ? (
           <div className="rounded-xl bg-amber-900/20 p-4 text-center text-xs text-amber-400">
-            You created this invoice, share this link with your payer
+            You are the owner of this invoice - you can't pay it from the same account. Share this link with your payer.
           </div>
 
         ) : wrongPayer ? (
