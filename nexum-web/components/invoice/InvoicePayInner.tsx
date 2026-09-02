@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAccount, useWriteContract, usePublicClient, useConfig, useChainId } from 'wagmi'
 import { parseUnits } from 'viem'
@@ -52,6 +52,37 @@ function PayContent() {
   const [status, setStatus] = useState<PayStatus>('idle')
   const [txHash, setTxHash] = useState<string | null>(null)
   const [errMsg, setErrMsg] = useState<string | null>(null)
+
+  // Reactive Circle-session state. hasCircleSession() is a one-shot read; on the
+  // public pay page the session can appear AFTER mount (the payer returns from
+  // /signin), so we track it in state and re-check on mount and on window focus.
+  // Without this the CTA stayed on "Sign in to pay" until a manual reload.
+  const [circleReady, setCircleReady] = useState(false)
+  const busyPaying = (status as PayStatus) === 'submitting' || (status as PayStatus) === 'confirming'
+  // True when the payer just came back from signing in specifically to pay this
+  // invoice - we then show a "Ready to pay - Confirm" state instead of a silent
+  // page, and never auto-charge.
+  const [resumePay, setResumePay] = useState(false)
+
+  useEffect(() => {
+    const refStr = String(ref ?? '')
+    function recheck() {
+      const live = hasCircleSession()
+      setCircleReady(live)
+      // If we stashed "resume this invoice" before redirecting to signin and we
+      // now have a live session for the same invoice, surface the confirm state.
+      try {
+        const pending = sessionStorage.getItem('nexum_invoice_resume')
+        if (live && pending && pending === refStr) {
+          setResumePay(true)
+          sessionStorage.removeItem('nexum_invoice_resume')
+        }
+      } catch { /* sessionStorage unavailable - ignore */ }
+    }
+    recheck()
+    window.addEventListener('focus', recheck)
+    return () => window.removeEventListener('focus', recheck)
+  }, [ref])
 
   // ── Convert invoice amount to USDC ──────────────────────────
   // Invoice can be in any currency (NGN, GHS, KES, ZAR, EGP, EURC, USDC)
@@ -197,7 +228,13 @@ function PayContent() {
       const target = invoice.creator_address as string
       const outcome = await payWithCircle(target, usdcAmount)
       if (outcome.needsSignin) {
-        // No live Circle session: send them to sign in, then back here.
+        // No live Circle session. Do NOT try to run Circle login on this public
+        // page (the SDK login callback lives on /signin - attempting it here is
+        // what made the popup flicker open/closed). Stash a resume marker so the
+        // return lands on the "Ready to pay" confirm state, then hand off to the
+        // signin page which owns the full, working auth flow.
+        try { sessionStorage.setItem('nexum_invoice_resume', String(invoice.memo_ref)) } catch {}
+        setStatus('idle')
         router.push('/signin?returnTo=' + encodeURIComponent('/pay/' + invoice.memo_ref))
         return
       }
@@ -399,6 +436,21 @@ function PayContent() {
 
         ) : !isConnected ? (
           <div className="rounded-xl bg-app-bg p-4 text-center">
+            {resumePay && circleReady && (
+              <div className="mb-4 rounded-xl border border-app-accent/30 bg-app-accent/10 p-4">
+                <CheckCircle className="mx-auto mb-2 h-6 w-6 text-app-accent-text" />
+                <p className="mb-1 text-sm font-medium text-app-text">You're signed in - ready to pay</p>
+                <p className="mb-3 text-xs text-app-muted">
+                  Paying {formatAmount(usdcAmount)} USDC from your Nexum wallet.
+                </p>
+                <Button className="w-full" onClick={handlePayWithCircle}
+                  disabled={busyPaying}>
+                  {busyPaying
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> {circleStep ?? 'Processing'}…</>
+                    : 'Confirm payment'}
+                </Button>
+              </div>
+            )}
             <Wallet className="mx-auto mb-2 h-6 w-6 text-app-muted" />
             <p className="mb-3 text-sm text-app-muted">
               Connect your wallet to pay this invoice
@@ -414,8 +466,9 @@ function PayContent() {
               <span className="text-[10px] text-app-muted">or</span>
               <div className="h-px flex-1 bg-app-border" />
             </div>
-            <Button variant="outline" className="w-full" onClick={handlePayWithCircle}>
-              {hasCircleSession() ? 'Pay with your Nexum wallet' : 'Sign in to pay with Nexum wallet'}
+            <Button variant="outline" className="w-full" onClick={handlePayWithCircle}
+              disabled={busyPaying}>
+              {circleReady ? 'Pay with your Nexum wallet' : 'Sign in to pay with Nexum wallet'}
             </Button>
             <p className="mt-2 text-[10px] text-app-muted">
               Use your Circle-powered Nexum wallet. New here? Signing in creates one for you.
