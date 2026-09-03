@@ -17,6 +17,8 @@ import { arcTestnet } from '@/lib/arc-chain'
 import { ensureArcChain } from '@/lib/ensure-arc-chain'
 import { useInvoiceCirclePay, hasCircleSession } from '@/hooks/useInvoiceCirclePay'
 import { useAuth } from '@/hooks/useAuth'
+import { clearSigningSession } from '@/hooks/useCircleTx'
+import { clearSession } from '@/hooks/useAuth'
 import {
   FileText, CheckCircle, AlertCircle,
   Loader2, ExternalLink, Wallet, XCircle,
@@ -45,6 +47,16 @@ function PayContent() {
   const { account }                       = useAuth()
   const circleAddress                     = account?.walletAddress ?? null
   const { disconnect }                    = useDisconnect()
+
+  // Fully sign out of the Nexum (Circle) session on the pay page, so a creator
+  // who opened their own invoice can switch to a different account to pay.
+  // Mirrors AccountMenu's sign-out, then reloads the pay page fresh.
+  function signOutHere() {
+    try { clearSigningSession() } catch {}
+    try { clearSession() } catch {}
+    try { disconnect() } catch {}
+    window.location.reload()
+  }
   const publicClient                     = usePublicClient({ chainId: arcTestnet.id })
   const { data: invoice, isLoading }     = useInvoiceByRef(ref as string)
   const { data: rates = [] }             = useFXRates()
@@ -441,8 +453,23 @@ function PayContent() {
           </div>
 
         ) : isCreator ? (
-          <div className="rounded-xl bg-amber-900/20 p-4 text-center text-xs text-amber-400">
-            You are the owner of this invoice - you can't pay it from the same account. Share this link with your payer.
+          <div className="rounded-xl bg-amber-900/20 p-4 text-center">
+            <p className="mb-3 text-xs text-amber-400">
+              You are the owner of this invoice - you can't pay it from the same account. Share this link with your payer.
+            </p>
+            <p className="mb-2 text-[11px] text-app-muted">
+              Paying on someone else's behalf? Switch to a different account or wallet:
+            </p>
+            {isConnected && (
+              <Button variant="outline" size="sm" className="mb-2 w-full" onClick={() => disconnect()}>
+                Disconnect wallet
+              </Button>
+            )}
+            {circleAddress && (
+              <Button variant="outline" size="sm" className="w-full" onClick={signOutHere}>
+                Sign out of {account?.username ? '@' + account.username : 'this account'}
+              </Button>
+            )}
           </div>
 
         ) : wrongPayer ? (
