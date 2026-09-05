@@ -13,6 +13,9 @@ import { sql } from 'drizzle-orm'
 const COLUMNS: Array<{ name: string; ddl: string }> = [
   { name: 'payment_tx_hash', ddl: 'ALTER TABLE invoices ADD COLUMN payment_tx_hash TEXT' },
   { name: 'usdc_amount',     ddl: 'ALTER TABLE invoices ADD COLUMN usdc_amount REAL' },
+  { name: 'recipient_email', ddl: 'ALTER TABLE invoices ADD COLUMN recipient_email TEXT' },
+  { name: 'email_note',      ddl: 'ALTER TABLE invoices ADD COLUMN email_note TEXT' },
+  { name: 'due_notified_at', ddl: 'ALTER TABLE invoices ADD COLUMN due_notified_at INTEGER' },
 ]
 
 async function existingColumns(): Promise<Set<string>> {

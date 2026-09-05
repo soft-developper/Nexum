@@ -1,6 +1,7 @@
 import { db }  from '../db/client'
 import { sql } from 'drizzle-orm'
 import { notifyInvoiceReminder } from '../services/email/notifications'
+import { sendInvoiceDueEmail } from '../services/email/invoiceRequest'
 
 function parseRows(r: any): any[] {
   if (!r) return []
@@ -50,6 +51,42 @@ export function startInvoiceReminders() {
       }
     } catch (err: any) {
       console.error('[InvoiceReminders] error:', err.message)
+    }
+
+    // ── Due-date reminder to the RECIPIENT (invoices created with a due date
+    //    that has now passed, still unpaid, that were emailed to someone, and
+    //    not yet due-notified). Fires once per invoice via due_notified_at. ──
+    try {
+      const dueRows = await db.run(sql`
+        SELECT id, memo_ref, creator_address, amount, currency, description,
+               due_date, recipient_email
+        FROM invoices
+        WHERE status IN ('draft', 'sent')
+          AND due_date IS NOT NULL
+          AND due_date <= ${now}
+          AND recipient_email IS NOT NULL
+          AND due_notified_at IS NULL
+        LIMIT 20
+      `)
+      const due = parseRows(dueRows)
+      if (due.length > 0) {
+        console.log(`[InvoiceReminders] Sending due-date reminders for ${due.length} invoices`)
+        for (const inv of due) {
+          const invId = inv.id ?? inv[0]
+          await sendInvoiceDueEmail({
+            to:            inv.recipient_email ?? inv[7],
+            creatorWallet: inv.creator_address ?? inv[2] ?? '',
+            memoRef:       inv.memo_ref ?? inv[1] ?? '',
+            amount:        Number(inv.amount ?? inv[3] ?? 0),
+            currency:      inv.currency ?? inv[4] ?? 'USDC',
+            description:   inv.description ?? inv[5] ?? null,
+            dueDate:       inv.due_date != null ? Number(inv.due_date ?? inv[6]) : null,
+          }).catch((err: any) => console.error('[InvoiceReminders] due send failed:', err.message))
+          await db.run(sql`UPDATE invoices SET due_notified_at = ${now} WHERE id = ${invId}`)
+        }
+      }
+    } catch (err: any) {
+      console.error('[InvoiceReminders] due-date error:', err.message)
     }
   }
 

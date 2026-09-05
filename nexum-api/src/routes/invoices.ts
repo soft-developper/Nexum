@@ -1,5 +1,5 @@
 import { notifyInvoicePaid, notifyPaymentReceipt } from '../services/email/notifications'
-import { sendInvoiceRequestEmail } from '../services/email/invoiceRequest'
+import { sendInvoiceRequestEmail, sendInvoiceCancelledEmail } from '../services/email/invoiceRequest'
 import { Router }     from 'express'
 import { db }         from '../db/client'
 import { sql }        from 'drizzle-orm'
@@ -95,13 +95,17 @@ router.post('/', async (req, res) => {
     await db.run(
       sql`INSERT INTO invoices
           (id, creator_address, payer_address, amount, currency,
-           description, notes, due_date, memo_ref, status, created_at, updated_at)
+           description, notes, due_date, memo_ref, status,
+           recipient_email, email_note, created_at, updated_at)
           VALUES
           (${id}, ${walletAddress.toLowerCase()},
            ${payerAddress?.toLowerCase() ?? null},
            ${Number(amount)}, ${currency},
            ${description ?? null}, ${notes ?? null},
-           ${dueDate ?? null}, ${memoRef}, 'draft', ${now}, ${now})`
+           ${dueDate ?? null}, ${memoRef}, 'draft',
+           ${(typeof recipientEmail === 'string' ? recipientEmail.trim() : '') || null},
+           ${(typeof emailNote === 'string' ? emailNote.trim() : '') || null},
+           ${now}, ${now})`
     )
 
     // Optional: email the payment request to a recipient. Sender-centric content
@@ -144,9 +148,32 @@ router.patch('/:id/status', async (req, res) => {
             updated_at      = ${now}
           WHERE id = ${req.params.id}`
     )
+    if (status === 'cancelled') { void emailCancellation(req.params.id) }
     res.json({ success: true })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
+
+// Send the recipient a cancellation follow-up IF this invoice was emailed to
+// someone. Best-effort, never throws into the caller.
+async function emailCancellation(invoiceId: string): Promise<void> {
+  try {
+    const r = parseRows(await db.run(sql`
+      SELECT creator_address, memo_ref, amount, currency, description, recipient_email
+      FROM invoices WHERE id = ${invoiceId} LIMIT 1`))
+    const inv: any = r[0]
+    if (!inv || !inv.recipient_email) return
+    await sendInvoiceCancelledEmail({
+      to:            inv.recipient_email,
+      creatorWallet: inv.creator_address ?? '',
+      memoRef:       inv.memo_ref ?? '',
+      amount:        Number(inv.amount ?? 0),
+      currency:      inv.currency ?? 'USDC',
+      description:   inv.description ?? null,
+    })
+  } catch (e: any) {
+    console.error('[Invoice] cancellation email failed (non-fatal):', e?.message ?? e)
+  }
+}
 
 // PATCH /invoices/ref/:ref/pay mark paid or failed by memo ref
 // Called by frontend after on-chain confirmation with receipt.status
@@ -233,6 +260,7 @@ router.delete('/:id', async (req, res) => {
       sql`UPDATE invoices SET status = 'cancelled', updated_at = ${Math.floor(Date.now()/1000)}
           WHERE id = ${req.params.id} AND status IN ('draft','sent')`
     )
+    void emailCancellation(req.params.id)
     res.json({ success: true })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
