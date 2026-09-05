@@ -1,4 +1,5 @@
 import { notifyInvoicePaid, notifyPaymentReceipt } from '../services/email/notifications'
+import { sendInvoiceRequestEmail } from '../services/email/invoiceRequest'
 import { Router }     from 'express'
 import { db }         from '../db/client'
 import { sql }        from 'drizzle-orm'
@@ -83,7 +84,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /invoices create invoice
 router.post('/', async (req, res) => {
-  const { walletAddress, amount, currency = 'USDC', description, notes, dueDate, payerAddress } = req.body
+  const { walletAddress, amount, currency = 'USDC', description, notes, dueDate, payerAddress, recipientEmail, emailNote } = req.body
   if (!walletAddress || !amount) return res.status(400).json({ error: 'walletAddress and amount required' })
 
   const id      = randomUUID()
@@ -102,7 +103,31 @@ router.post('/', async (req, res) => {
            ${description ?? null}, ${notes ?? null},
            ${dueDate ?? null}, ${memoRef}, 'draft', ${now}, ${now})`
     )
-    res.status(201).json({ id, memoRef })
+
+    // Optional: email the payment request to a recipient. Sender-centric content
+    // (no Nexum branding). NON-FATAL - a mail failure must not fail invoice
+    // creation; we just report emailed:false.
+    let emailed = false
+    const cleanEmail = typeof recipientEmail === 'string' ? recipientEmail.trim() : ''
+    if (cleanEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      try {
+        const r = await sendInvoiceRequestEmail({
+          to:            cleanEmail,
+          creatorWallet: walletAddress,
+          memoRef,
+          amount:        Number(amount),
+          currency,
+          note:          typeof emailNote === 'string' ? emailNote.trim() || null : null,
+          description:   description ?? null,
+          dueDate:       dueDate ?? null,
+        })
+        emailed = r.success
+      } catch (e: any) {
+        console.error('[Invoice] request email failed (non-fatal):', e?.message ?? e)
+      }
+    }
+
+    res.status(201).json({ id, memoRef, emailed })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
 

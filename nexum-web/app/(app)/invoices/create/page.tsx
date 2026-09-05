@@ -25,6 +25,8 @@ function CreateInvoiceContent() {
   const [notes,        setNotes]        = useState('')
   const [payerAddress, setPayerAddress] = useState('')
   const [dueDate,      setDueDate]      = useState('')
+  const [recipientEmail, setRecipientEmail] = useState('')
+  const [emailNote,      setEmailNote]      = useState('')
 
   // USD equivalent preview for non-USDC invoices
   const rateEntry = rates.find(r => r.pair === `${currency}/USDC`)
@@ -41,6 +43,8 @@ function CreateInvoiceContent() {
       notes:        notes       || undefined,
       payerAddress: payerAddress || undefined,
       dueDate:      dueDate ? Math.floor(new Date(dueDate).getTime() / 1000) : undefined,
+      recipientEmail: recipientEmail || undefined,
+      emailNote:      emailNote || undefined,
     })
     if (result?.id) router.push(`/invoices/${result.id}`)
   }
@@ -115,6 +119,22 @@ function CreateInvoiceContent() {
                 <label className="mb-1 block text-xs text-app-muted">Due date</label>
                 <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
               </div>
+              <div>
+                <label className="mb-1 block text-xs text-app-muted">Send to email (optional)</label>
+                <Input type="email" placeholder="recipient@email.com"
+                  value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} />
+                <p className="mt-1 text-[10px] text-app-muted">
+                  We'll email them the payment link with your name and details
+                </p>
+              </div>
+              {recipientEmail && (
+                <div>
+                  <label className="mb-1 block text-xs text-app-muted">Note to recipient (optional)</label>
+                  <textarea value={emailNote} onChange={e => setEmailNote(e.target.value)}
+                    rows={2} placeholder="Add a short message to include in the email"
+                    className="w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text outline-none" />
+                </div>
+              )}
             </div>
           </div>
         </div>

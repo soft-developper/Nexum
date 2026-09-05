@@ -68,6 +68,7 @@ export function useCreateInvoice() {
     mutationFn: async (data: {
       amount: number; currency?: string; description?: string
       notes?: string; dueDate?: number; payerAddress?: string
+      recipientEmail?: string; emailNote?: string
     }) => {
       const res = await fetch(`${API}/invoices`, {
         method: 'POST',
