@@ -4,6 +4,7 @@ import { sql }        from 'drizzle-orm'
 import { randomUUID, createHash } from 'crypto'  // PHASE_7F: createHash for deterministic idempotency UUID
 // __NEXUM_OBSERVABILITY_WIRED__ (phase7) surface swallowed payout failures
 import { captureException } from '../lib/logger'
+import { prunePayroll } from '../services/retention'
 
 const router = Router()
 
@@ -303,6 +304,17 @@ async function runBatchPayout(batchId: string): Promise<void> {
       SET status = ${finalStatus},
           executed_at = ${Math.floor(Date.now() / 1000)}
       WHERE id = ${batchId}`)
+
+    // Cap payroll history for this batch's owner once it settles terminal
+    // (completed/partial/failed). 'processing' is NOT terminal - not pruned.
+    if (finalStatus === 'completed' || finalStatus === 'partial') {
+      try {
+        const ownerRows = parseRows(await db.run(sql`
+          SELECT wallet_address FROM payroll_batches WHERE id = ${batchId} LIMIT 1`))
+        const w = ownerRows[0]?.wallet_address ?? ownerRows[0]?.[0]
+        if (w) { void prunePayroll(w) }
+      } catch {}
+    }
   } finally {
     runningBatches.delete(batchId)
   }

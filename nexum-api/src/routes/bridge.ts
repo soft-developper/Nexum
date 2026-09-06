@@ -22,6 +22,7 @@ import {
   markBurning, markBurned, markAttested, markCompleted, markFailed,
   markCancelled, nextAction, isInFlight,
 } from '../services/bridge/repository'
+import { pruneBridge } from '../services/retention'
 
 const router = Router()
 
@@ -108,7 +109,16 @@ router.post('/:id/attested', async (req, res) => {
 router.post('/:id/completed', async (req, res) => {
   const { mintTx } = req.body
   if (!mintTx) return res.status(400).json({ error: 'mintTx required' })
-  try { await markCompleted(req.params.id, mintTx); res.json({ ok: true, status: 'completed' }) }
+  try {
+    await markCompleted(req.params.id, mintTx)
+    // Cap bridge history for this user (terminal-only, per-user).
+    try {
+      const b = await getBridge(req.params.id)
+      const w = (b as any)?.wallet_address ?? (b as any)?.walletAddress
+      if (w) { void pruneBridge(w) }
+    } catch {}
+    res.json({ ok: true, status: 'completed' })
+  }
   catch (err: any) { res.status(500).json({ error: err.message }) }
 })
 
@@ -129,6 +139,15 @@ router.post('/:id/failed', async (req, res) => {
     // The repository decides failed-vs-stranded based on whether a burn landed,
     // so a client can't accidentally mark burned funds as harmlessly failed.
     const outcome = await markFailed(req.params.id, String(reason ?? 'unknown'))
+    // Only prune on a genuine terminal 'failed' - NEVER on 'stranded' (burned,
+    // mint unresolved: recovery evidence must be kept).
+    if (outcome === 'failed') {
+      try {
+        const b = await getBridge(req.params.id)
+        const w = (b as any)?.wallet_address ?? (b as any)?.walletAddress
+        if (w) { void pruneBridge(w) }
+      } catch {}
+    }
     res.json({ ok: true, status: outcome })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })

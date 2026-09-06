@@ -1,5 +1,6 @@
 import { notifyInvoicePaid, notifyPaymentReceipt } from '../services/email/notifications'
 import { sendInvoiceRequestEmail, sendInvoiceCancelledEmail } from '../services/email/invoiceRequest'
+import { pruneInvoices } from '../services/retention'
 import { Router }     from 'express'
 import { db }         from '../db/client'
 import { sql }        from 'drizzle-orm'
@@ -161,7 +162,12 @@ async function emailCancellation(invoiceId: string): Promise<void> {
       SELECT creator_address, memo_ref, amount, currency, description, recipient_email
       FROM invoices WHERE id = ${invoiceId} LIMIT 1`))
     const inv: any = r[0]
-    if (!inv || !inv.recipient_email) return
+    if (!inv || !inv.recipient_email) {
+      // Even with no recipient email, still cap history on cancel.
+      if (inv?.creator_address) { void pruneInvoices(inv.creator_address) }
+      return
+    }
+    if (inv.creator_address) { void pruneInvoices(inv.creator_address) }
     await sendInvoiceCancelledEmail({
       to:            inv.recipient_email,
       creatorWallet: inv.creator_address ?? '',
@@ -236,6 +242,7 @@ router.patch('/ref/:ref/pay', async (req, res) => {
     try {
       const _inv = parseRows(await db.run(sql`SELECT id, creator_address, memo_ref, currency, amount, usdc_amount FROM invoices WHERE memo_ref = ${req.params.ref} LIMIT 1`))[0]
       if (_inv) {
+        if (_inv.creator_address) { void pruneInvoices(_inv.creator_address) }
         notifyInvoicePaid({
           creatorWallet: _inv.creator_address ?? '',
           payerAddress:  payerAddress ?? '',

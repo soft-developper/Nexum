@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db }     from '../db/client'
 import { sql }    from 'drizzle-orm'
+import { pruneSend } from '../services/retention'
 
 const router = Router()
 
@@ -112,6 +113,15 @@ router.patch('/:hash', async (req, res) => {
           WHERE arc_tx_hash = ${req.params.hash}
              OR id          = ${req.params.hash}`
     )
+    // Cap history when a send reaches a terminal state (per-user, terminal-only).
+    if (status === 'settled' || status === 'failed') {
+      try {
+        const owner = parseRows(await db.run(sql`
+          SELECT wallet_address FROM transactions
+          WHERE arc_tx_hash = ${req.params.hash} OR id = ${req.params.hash} LIMIT 1`))[0]
+        if (owner?.wallet_address) { void pruneSend(owner.wallet_address) }
+      } catch {}
+    }
     res.json({ success: true })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })

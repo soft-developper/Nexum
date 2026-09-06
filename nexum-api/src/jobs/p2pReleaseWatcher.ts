@@ -9,6 +9,7 @@ import { db }               from '../db/client'
 import { sql }              from 'drizzle-orm'
 import { releasePlatform, cancelPlatform } from '../services/platformWallet'
 import { notifyTradeCompleted, notifyTradeAutoCancelled } from '../services/email/notifications'
+import { pruneTrades } from '../services/retention'
 
 function parseRows(r: any): any[] {
   if (!r) return []
@@ -38,8 +39,9 @@ async function releaseOffer(offerId: string, label: string) {
       const r = parseRows(offerRows)
       const o = r[0]
       if (o) {
+        const makerAddr = o.maker_address ?? o[1] ?? ''
         notifyTradeCompleted({
-          makerWallet: o.maker_address ?? o[1] ?? '',
+          makerWallet: makerAddr,
           takerWallet: o.taker_address ?? o[2] ?? '',
           usdcAmount:  Number(o.usdc_amount  ?? o[3]  ?? 0),
           localAmount: Number(o.local_amount  ?? o[5]  ?? 0),
@@ -47,6 +49,9 @@ async function releaseOffer(offerId: string, label: string) {
           offerId,
           txHash:      hash,
         }).catch((err: any) => console.error('[Notify] trade_completed failed:', err.message))
+
+        // Cap this maker's trade history (terminal-only: released/cancelled).
+        if (makerAddr) { void pruneTrades(makerAddr) }
 
         // The receipt is now attached as a PDF to the completion email above,
         // so we no longer send a separate receipt email per party.
@@ -81,12 +86,14 @@ async function cancelOffer(offerId: string, label: string) {
       `)
       const o = parseRows(oRows)[0]
       if (o) {
+        const makerAddr = o.maker_address ?? o[0] ?? ''
         notifyTradeAutoCancelled({
-          makerWallet: o.maker_address ?? o[0] ?? '',
+          makerWallet: makerAddr,
           takerWallet: o.taker_address ?? o[1] ?? null,
           usdcAmount:  Number(o.usdc_amount ?? o[2] ?? 0),
           offerId,
         }).catch((err: any) => console.error('[Notify] auto_cancelled:', err.message))
+        if (makerAddr) { void pruneTrades(makerAddr) }
       }
     } catch {}
 
