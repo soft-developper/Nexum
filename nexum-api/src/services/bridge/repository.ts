@@ -117,7 +117,7 @@ export async function getBridge(id: string): Promise<BridgeRecord | null> {
   return normalize(rows[0])
 }
 
-export async function listBridgesByWallet(wallet: string, limit = 25): Promise<BridgeRecord[]> {
+export async function listBridgesByWallet(wallet: string, limit = 30): Promise<BridgeRecord[]> {
   const rows = parseRows(await db.run(sql`
     SELECT * FROM bridge_transfers
     WHERE wallet_address = ${wallet.toLowerCase()}

@@ -56,7 +56,7 @@ router.get('/batches', async (req, res) => {
     const rows = await db.run(
       sql`SELECT * FROM payroll_batches
           WHERE LOWER(wallet_address) = ${wallet}
-          ORDER BY created_at DESC LIMIT 20`
+          ORDER BY created_at DESC LIMIT 30`
     )
     res.json(parseRows(rows).map(normBatch))
   } catch (err: any) { res.status(500).json({ error: err.message }) }
