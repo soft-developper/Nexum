@@ -1,6 +1,7 @@
 import { BridgeCard } from '@/components/bridge/BridgeCard'
 import { BridgeHistory } from '@/components/bridge/BridgeHistory'
 import { ClientOnly } from '@/components/ui/client-only'
+import { SectionGuard } from '@/components/layout/SectionGuard'
 
 export const metadata = { title: 'Bridge, Nexum' }
 
@@ -19,26 +20,25 @@ function BridgeSkeleton() {
   )
 }
 
-/*
-  No SectionGuard here on purpose: the maintenance sections are a fixed list
-  ('convert' | 'corridor' | 'send' | ...) and 'bridge' isn't one of them.
-  Adding a new section would mean a backend change; that can come later if you
-  want to be able to take the bridge down independently.
-*/
+// 'bridge' is now a maintenance section, so gate the page like /ramp: when the
+// section (or the whole platform) is down, users see the maintenance state
+// instead of the bridge UI. Admins are not gated (they verify via the panel).
 export default function BridgePage() {
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-app-text">Bridge</h1>
-        <p className="text-sm text-app-muted">
-          Move native USDC between Arc and other chains using Circle&apos;s CCTP.
-        </p>
+    <SectionGuard section="bridge">
+      <div>
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-app-text">Bridge</h1>
+          <p className="text-sm text-app-muted">
+            Move native USDC between Arc and other chains using Circle&apos;s CCTP.
+          </p>
+        </div>
+        <ClientOnly fallback={<BridgeSkeleton />}>
+          <BridgeCard />
+          {/* A bridge that outlives the page must never become invisible. */}
+          <BridgeHistory />
+        </ClientOnly>
       </div>
-      <ClientOnly fallback={<BridgeSkeleton />}>
-        <BridgeCard />
-        {/* A bridge that outlives the page must never become invisible. */}
-        <BridgeHistory />
-      </ClientOnly>
-    </div>
+    </SectionGuard>
   )
 }
