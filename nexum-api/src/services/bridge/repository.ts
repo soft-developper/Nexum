@@ -117,11 +117,14 @@ export async function getBridge(id: string): Promise<BridgeRecord | null> {
   return normalize(rows[0])
 }
 
-export async function listBridgesByWallet(wallet: string, limit = 30): Promise<BridgeRecord[]> {
+export async function listBridgesByWallet(wallet: string): Promise<BridgeRecord[]> {
+  // No LIMIT: the per-user retention cap (30 terminal + all in-flight) already
+  // bounds this to a small set. A LIMIT here would hide older IN-FLIGHT rows
+  // once newer terminal rows filled the window.
   const rows = parseRows(await db.run(sql`
     SELECT * FROM bridge_transfers
     WHERE wallet_address = ${wallet.toLowerCase()}
-    ORDER BY created_at DESC LIMIT ${limit}`))
+    ORDER BY created_at DESC`))
   return rows.map(normalize).filter(Boolean) as BridgeRecord[]
 }
 

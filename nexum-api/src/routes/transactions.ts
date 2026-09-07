@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
     const rows = await db.run(
       sql`SELECT * FROM transactions
           WHERE LOWER(wallet_address) = ${wallet}
-          ORDER BY created_at DESC LIMIT 50`
+          ORDER BY created_at DESC`
     )
     res.json(parseRows(rows))
   } catch (err: any) { res.status(500).json({ error: err.message }) }

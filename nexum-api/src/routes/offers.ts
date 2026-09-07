@@ -49,7 +49,7 @@ router.get('/my', async (req, res) => {
       sql`SELECT * FROM p2p_offers
           WHERE LOWER(maker_address) = ${wallet}
              OR LOWER(taker_address) = ${wallet}
-          ORDER BY created_at DESC LIMIT 50`
+          ORDER BY created_at DESC`
     )
     const offers = Array.isArray((rows as any).rows)
       ? (rows as any).rows : Array.isArray(rows) ? rows : []

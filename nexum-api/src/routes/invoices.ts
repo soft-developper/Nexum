@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
       sql`SELECT * FROM invoices
           WHERE LOWER(creator_address) = ${wallet}
              OR LOWER(payer_address)   = ${wallet}
-          ORDER BY created_at DESC LIMIT 100`
+          ORDER BY created_at DESC`
     )
     res.json(parseRows(rows).map(normInvoice))
   } catch (err: any) { res.status(500).json({ error: err.message }) }
