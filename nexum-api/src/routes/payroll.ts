@@ -5,6 +5,7 @@ import { randomUUID, createHash } from 'crypto'  // PHASE_7F: createHash for det
 // __NEXUM_OBSERVABILITY_WIRED__ (phase7) surface swallowed payout failures
 import { captureException } from '../lib/logger'
 import { prunePayroll } from '../services/retention'
+import { getOrCreateEmployerWallet } from '../services/employerDisbursement'
 
 const router = Router()
 
@@ -208,7 +209,7 @@ function stableUuid(input: string): string {
 }
 
 // PHASE_7G active
-async function runBatchPayout(batchId: string): Promise<void> {
+async function runBatchPayout(batchId: string, walletId: string): Promise<void> {
   if (runningBatches.has(batchId)) return
   runningBatches.add(batchId)
   try {
@@ -231,7 +232,7 @@ async function runBatchPayout(batchId: string): Promise<void> {
           WHERE id = ${recipientId} AND status = 'pending'`)
 
         const result = await sendUsdc({
-          walletId:           process.env.PAYROLL_DISBURSEMENT_WALLET_ID as string,
+          walletId:           walletId,
           destinationAddress: String(toAddress),
           amount,
           // Stable key => exactly-once even if this runs twice.
@@ -327,15 +328,19 @@ async function runBatchPayout(batchId: string): Promise<void> {
 // returns immediately. Poll GET /payroll/batches/:id for progress.
 router.post('/batches/:id/execute', async (req, res) => {
   const batchId  = req.params.id
-  const walletId = process.env.PAYROLL_DISBURSEMENT_WALLET_ID
-  if (!walletId) return res.status(400).json({ error: 'Disbursement wallet not configured' })
 
   try {
     const batchRows = parseRows(await db.run(sql`
-      SELECT id, status FROM payroll_batches WHERE id = ${batchId} LIMIT 1`))
+      SELECT id, status, wallet_address FROM payroll_batches WHERE id = ${batchId} LIMIT 1`))
     if (!batchRows.length) return res.status(404).json({ error: 'Batch not found' })
     const status = String(batchRows[0].status ?? batchRows[0][1])
     if (status === 'completed') return res.status(400).json({ error: 'Batch already completed' })
+
+    // Per-employer wallet: pay this batch from ITS OWNER's disbursement wallet,
+    // never a shared float. The batch's wallet_address IS the employer identity.
+    const ownerAddr = String(batchRows[0].wallet_address ?? batchRows[0][2] ?? '').toLowerCase()
+    if (!ownerAddr) return res.status(400).json({ error: 'Batch has no owner wallet' })
+    const { walletId } = await getOrCreateEmployerWallet(ownerAddr)
 
     // Sum only what's still owed (pending), so a resume gates on the remainder.
     const owedRows = parseRows(await db.run(sql`
@@ -364,7 +369,7 @@ router.post('/batches/:id/execute', async (req, res) => {
     await db.run(sql`UPDATE payroll_batches SET status = 'processing' WHERE id = ${batchId}`)
 
     // Fire and forget: the client polls the batch for progress.
-    runBatchPayout(batchId).catch(err =>
+    runBatchPayout(batchId, walletId).catch(err =>
       captureException(err, { scope: 'payroll.runBatchPayout', batchId }))
 
     res.json({ status: 'processing', owed, balance })
@@ -378,12 +383,11 @@ router.post('/batches/:id/execute', async (req, res) => {
 // Reports whether the platform disbursement wallet (Phase 7a, MPC) is
 // configured and its current USDC balance. Used to verify provisioning and,
 // later, to check a batch can be funded. Read-only; exposes no secrets.
-router.get('/disbursement/status', async (_req, res) => {
-  const walletId = process.env.PAYROLL_DISBURSEMENT_WALLET_ID
-  if (!walletId) {
-    return res.json({ configured: false, reason: 'PAYROLL_DISBURSEMENT_WALLET_ID not set' })
-  }
+router.get('/disbursement/status', async (req, res) => {
+  const employer = String(req.query.wallet ?? '').trim().toLowerCase()
+  if (!employer) return res.status(400).json({ error: 'wallet (employer address) is required' })
   try {
+    const { walletId } = await getOrCreateEmployerWallet(employer)
     const { getDisbursementBalance } = await import('../services/platformDisbursement')
     const balance = await getDisbursementBalance(walletId)
     res.json({ configured: true, walletId, balance })
@@ -396,12 +400,12 @@ router.get('/disbursement/status', async (_req, res) => {
 //
 // The address employers send USDC to when topping up the float. Read from the
 // live wallet so it can never drift from what was provisioned.
-router.get('/disbursement/address', async (_req, res) => {
-  const walletId = process.env.PAYROLL_DISBURSEMENT_WALLET_ID
-  if (!walletId) return res.status(400).json({ error: 'Disbursement wallet not configured' })
+router.get('/disbursement/address', async (req, res) => {
+  const employer = String(req.query.wallet ?? '').trim().toLowerCase()
+  if (!employer) return res.status(400).json({ error: 'wallet (employer address) is required' })
   try {
-    const { getDisbursementAddress } = await import('../services/platformDisbursement')
-    const address = await getDisbursementAddress(walletId)
+    // The employer's OWN disbursement wallet address (theirs to top up).
+    const { address } = await getOrCreateEmployerWallet(employer)
     res.json({ address })
   } catch (err: any) {
     res.status(502).json({ error: err.message })
@@ -416,9 +420,7 @@ router.get('/disbursement/address', async (_req, res) => {
 // the client's word that it landed - we check Circle.
 router.post('/disbursement/fund', async (req, res) => {
   const { funderAddress, amount, txHash } = req.body ?? {}
-  const walletId = process.env.PAYROLL_DISBURSEMENT_WALLET_ID
 
-  if (!walletId)       return res.status(400).json({ error: 'Disbursement wallet not configured' })
   if (!funderAddress)  return res.status(400).json({ error: 'funderAddress is required' })
   if (!(Number(amount) > 0)) return res.status(400).json({ error: 'A positive amount is required' })
 
@@ -426,6 +428,9 @@ router.post('/disbursement/fund', async (req, res) => {
   const now = Math.floor(Date.now() / 1000)
 
   try {
+    // The funder IS the employer; confirm the top-up against THEIR wallet.
+    const { walletId } = await getOrCreateEmployerWallet(String(funderAddress).toLowerCase())
+
     // Record the intent first (audit trail), then confirm against the chain.
     await db.run(sql`
       INSERT INTO payroll_disbursement_funding

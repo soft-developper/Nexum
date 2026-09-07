@@ -8,25 +8,28 @@ import { useState, useEffect, useCallback } from 'react'
 import { Loader2, Wallet, Plus, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePayrollFunding } from '@/hooks/usePayrollFunding'
+import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
 export function DisbursementFloatCard() {
+  const { address }             = useAccount()
   const [balance, setBalance]   = useState<number | null>(null)
   const [configured, setConfig] = useState<boolean | null>(null)
   const [amount, setAmount]     = useState('')
   const { step, error, note, balance: newBalance, fund, reset } = usePayrollFunding()
 
   const refresh = useCallback(async () => {
+    if (!address) return
     try {
-      const res  = await fetch(`${API}/payroll/disbursement/status`)
+      const res  = await fetch(`${API}/payroll/disbursement/status?wallet=${address}`)
       const data = await res.json().catch(() => ({}))
       setConfig(Boolean(data.configured))
       setBalance(typeof data.balance === 'number' ? data.balance : null)
     } catch {
       setConfig(false)
     }
-  }, [])
+  }, [address])
 
   useEffect(() => { refresh() }, [refresh])
   // After a successful top-up, reflect the new balance.

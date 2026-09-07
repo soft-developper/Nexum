@@ -53,7 +53,7 @@ export function usePayrollFunding() {
 
       // Fetch the live disbursement address from the server - never hardcode
       // or let the client choose where the money goes.
-      const addrRes = await fetch(`${API}/payroll/disbursement/address`)
+      const addrRes = await fetch(`${API}/payroll/disbursement/address?wallet=${address}`)
       const addrData = await addrRes.json().catch(() => ({}))
       if (!addrRes.ok || !addrData.address) {
         throw new Error(addrData.error ?? 'Disbursement wallet is not set up yet.')

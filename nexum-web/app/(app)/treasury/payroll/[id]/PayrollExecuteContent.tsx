@@ -46,13 +46,16 @@ export function PayrollExecuteContent() {
   const isPartial    = batchStatus === 'partial'
 
   // Load the float balance so we can warn before starting rather than fail.
+  // Per-employer: read the balance of the batch OWNER's disbursement wallet.
   const loadFloat = useCallback(async () => {
+    const owner = (batch as any)?.wallet_address
+    if (!owner) return
     try {
-      const res  = await fetch(`${API}/payroll/disbursement/status`)
+      const res  = await fetch(`${API}/payroll/disbursement/status?wallet=${owner}`)
       const data = await res.json().catch(() => ({}))
       setFloatBal(typeof data.balance === 'number' ? data.balance : null)
     } catch { setFloatBal(null) }
-  }, [])
+  }, [batch])
   useEffect(() => { loadFloat() }, [loadFloat])
 
   // While the batch is processing, poll it for progress.
