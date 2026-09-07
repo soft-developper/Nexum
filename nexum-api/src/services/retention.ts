@@ -54,11 +54,13 @@ export async function pruneSend(wallet: string): Promise<void> {
   await pruneTable('transactions', 'wallet_address', wallet, ['settled', 'failed'])
 }
 
-/** BRIDGE - bridge_transfers. Terminal = completed | failed.
- *  NEVER prunes 'stranded' or any mid-stage (created/approving/burning/
- *  attesting/minting) - those hold recovery evidence. */
+/** BRIDGE - bridge_transfers. Terminal = completed | failed | cancelled.
+ *  'cancelled' is safe: markCancelled only writes it when NO burn landed (a
+ *  burn would become 'stranded'), so no funds ever moved.
+ *  NEVER prunes 'stranded' or any mid-stage (created/burning/attesting/
+ *  minting) - those hold recovery evidence or are still in flight. */
 export async function pruneBridge(wallet: string): Promise<void> {
-  await pruneTable('bridge_transfers', 'wallet_address', wallet, ['completed', 'failed'])
+  await pruneTable('bridge_transfers', 'wallet_address', wallet, ['completed', 'failed', 'cancelled'])
 }
 
 /** MY TRADES - p2p_offers, scoped to the offer owner (maker).

@@ -129,6 +129,15 @@ router.post('/:id/completed', async (req, res) => {
 router.post('/:id/cancelled', async (req, res) => {
   try {
     const outcome = await markCancelled(req.params.id)
+    // Only prune on a genuine 'cancelled' (no funds moved). NEVER on 'stranded'
+    // (a burn landed - recovery evidence must be kept).
+    if (outcome === 'cancelled') {
+      try {
+        const b = await getBridge(req.params.id)
+        const w = (b as any)?.wallet_address ?? (b as any)?.walletAddress
+        if (w) { void pruneBridge(w) }
+      } catch {}
+    }
     res.json({ ok: true, status: outcome })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
