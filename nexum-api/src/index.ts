@@ -36,6 +36,7 @@ import { bridgeXyzConfigured, BRIDGE_IS_SANDBOX } from './services/bridgexyz/cli
 import { startSendReconciler } from './services/sendReconciler'
 import { ensureTransactionsSchema } from './services/ensureTransactionsSchema'
 import { ensureInvoiceSchema } from './services/ensureInvoiceSchema'
+import { ensureEmployerWalletSchema } from './services/employerDisbursement'
 import { ensureSessionLocationSchema } from './services/ensureSessionLocationSchema'
 import { ensureProfileDetailsSchema } from './services/ensureProfileDetailsSchema'
 import { ensureOfframpSchema } from './services/bridgexyz/ensureOfframp'
@@ -127,6 +128,9 @@ startAdminAuditSummary()
   // Self-heal invoice payment columns (payment_tx_hash, usdc_amount) - the
   // original invoices table never defined them, which broke invoice pay writes.
   await ensureInvoiceSchema()
+
+  // Per-employer payroll disbursement wallet mapping table.
+  await ensureEmployerWalletSchema()
 
   // Self-heal account_sessions.location_city (Part 2 sessions/devices; Turso
   // may not run the migration on prod).
