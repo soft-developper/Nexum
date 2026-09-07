@@ -25,12 +25,18 @@ export default function AdminRamps() {
   const t = useTokens()
   const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [provider, setProvider] = useState('all')
+  const [sort, setSort]         = useState('newest')
 
   useEffect(() => {
-    adminFetch('/admin/manage/ramps')
+    const params = new URLSearchParams()
+    if (provider !== 'all') params.set('provider', provider)
+    params.set('sort', sort)
+    setLoading(true)
+    adminFetch(`/admin/manage/ramps?${params.toString()}`)
       .then(r => r.json()).then(setData)
       .catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  }, [provider, sort])
 
   const corridorChart = (data?.corridors ?? []).map((c: any) => ({
     label: `${c.currency} ${c.direction === 'onramp' ? 'in' : 'out'}`,
@@ -107,7 +113,23 @@ export default function AdminRamps() {
 
           {/* KYC'd users table */}
           <div className="rounded-xl border border-app-border bg-app-surface p-5">
-            <p className="mb-4 text-sm font-medium text-app-text">Registered ramp users</p>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-app-text">Registered ramp users</p>
+              <div className="ml-auto flex items-center gap-2">
+                <select value={provider} onChange={e => setProvider(e.target.value)}
+                  className="rounded-lg border border-app-border bg-app-bg px-2.5 py-1 text-xs text-app-text outline-none">
+                  <option value="all">All providers</option>
+                  {(data.providers ?? []).map((p: any) => (
+                    <option key={p.provider} value={p.provider}>{p.provider}</option>
+                  ))}
+                </select>
+                <select value={sort} onChange={e => setSort(e.target.value)}
+                  className="rounded-lg border border-app-border bg-app-bg px-2.5 py-1 text-xs text-app-text outline-none">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </div>
+            </div>
             {data.customers.length === 0 ? (
               <p className="py-6 text-center text-sm text-app-muted">No registered ramp users yet.</p>
             ) : (
