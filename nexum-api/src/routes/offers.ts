@@ -20,23 +20,56 @@ function redactPayout(offer: any) {
   return clean
 }
 
-// GET /offers only OPEN offers visible to everyone
+// GET /offers only OPEN offers visible to everyone. Paginated + sortable so
+// EVERY open offer is reachable no matter how many exist (not capped at a fixed
+// window). Response: { offers, total, page, pageSize, totalPages }.
 router.get('/', async (req, res) => {
   const currency = req.query.currency as string | undefined
   const type     = req.query.type     as string | undefined
+  const sort     = String(req.query.sort ?? 'newest')
+  const page     = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1)
+  const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize ?? '20'), 10) || 20))
+  const offset   = (page - 1) * pageSize
+
+  // Whitelisted sort -> ORDER BY (never interpolate user input directly).
+  const ORDER: Record<string, string> = {
+    newest:      'created_at DESC',
+    oldest:      'created_at ASC',
+    amount_high: 'usdc_amount DESC',
+    amount_low:  'usdc_amount ASC',
+  }
+  const orderBy = ORDER[sort] ?? ORDER.newest
+
   try {
+    // total count (for totalPages) with the same filters.
+    const countRows = await db.run(
+      sql`SELECT COUNT(*) AS c FROM p2p_offers
+          WHERE status = 'open'
+          ${currency ? sql`AND local_currency = ${currency}` : sql``}
+          ${type     ? sql`AND order_type = ${type}`         : sql``}`
+    )
+    const cRow = (Array.isArray((countRows as any).rows) ? (countRows as any).rows : countRows)[0]
+    const total = Number(cRow?.c ?? cRow?.[0] ?? 0)
+
     const rows = await db.run(
       sql`SELECT * FROM p2p_offers
           WHERE status = 'open'
           ${currency ? sql`AND local_currency = ${currency}` : sql``}
           ${type     ? sql`AND order_type = ${type}`         : sql``}
-          ORDER BY created_at DESC LIMIT 50`
+          ORDER BY ${sql.raw(orderBy)}
+          LIMIT ${pageSize} OFFSET ${offset}`
     )
     const offers = Array.isArray((rows as any).rows)
       ? (rows as any).rows : Array.isArray(rows) ? rows : []
     // Never expose payout details on the PUBLIC list only the accepted
     // taker (and the maker) should see them, via GET /offers/:id.
-    res.json(offers.map(redactPayout))
+    res.json({
+      offers:     offers.map(redactPayout),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
 })
 

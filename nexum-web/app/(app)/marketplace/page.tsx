@@ -69,21 +69,34 @@ function MarketplacePageInner() {
   const [offers,   setOffers]          = useState<P2POffer[]>([])
   const [loading,  setLoading]         = useState(true)
   const [currency, setCurrency]        = useState('all')
+  const [sort,     setSort]            = useState('newest')
+  const [page,     setPage]            = useState(1)
+  const [totalPages, setTotalPages]    = useState(1)
   const [acceptState, setAcceptState]  = useState<AcceptState>({ phase: 'idle' })
   const { acceptOffer, error: p2pErr } = useP2P()
 
   async function load() {
     setLoading(true)
     try {
-      const url = currency === 'all' ? `${API}/offers` : `${API}/offers?currency=${currency}`
-      const res = await fetch(url)
+      const params = new URLSearchParams()
+      if (currency !== 'all') params.set('currency', currency)
+      params.set('sort', sort)
+      params.set('page', String(page))
+      params.set('pageSize', '20')
+      const res = await fetch(`${API}/offers?${params.toString()}`)
       const data = await res.json()
-      setOffers(Array.isArray(data) ? data.map(normalizeOffer) : [])
-    } catch { setOffers([]) }
+      // New paginated shape { offers, totalPages }. Tolerate an array too
+      // (older response) so nothing breaks during rollout.
+      const list = Array.isArray(data) ? data : (data.offers ?? [])
+      setOffers(list.map(normalizeOffer))
+      setTotalPages(Array.isArray(data) ? 1 : Math.max(1, Number(data.totalPages ?? 1)))
+    } catch { setOffers([]); setTotalPages(1) }
     finally  { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [currency])
+  // Reset to page 1 whenever the filter or sort changes.
+  useEffect(() => { setPage(1) }, [currency, sort])
+  useEffect(() => { load() }, [currency, sort, page])
 
   async function handleAccept(offer: P2POffer) {
     if (!address || acceptState.phase !== 'idle') return
@@ -227,8 +240,15 @@ function MarketplacePageInner() {
             Clear
           </button>
         )}
+        <select value={sort} onChange={e => setSort(e.target.value)}
+          className="ml-auto rounded-full border border-app-border bg-app-surface px-3 py-1 text-xs text-app-muted outline-none hover:text-app-text">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="amount_high">Amount: high to low</option>
+          <option value="amount_low">Amount: low to high</option>
+        </select>
         <button onClick={load}
-          className="ml-auto rounded-full border border-app-border px-3 py-1 text-xs text-app-muted hover:text-app-text">
+          className="rounded-full border border-app-border px-3 py-1 text-xs text-app-muted hover:text-app-text">
           ↻ Refresh
         </button>
       </div>
@@ -338,6 +358,27 @@ function MarketplacePageInner() {
           )
         })}
       </div>
+
+      {/* Pagination - every open offer is reachable across pages */}
+      {!loading && totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="rounded-lg border border-app-border px-3 py-1.5 text-xs text-app-muted hover:text-app-text disabled:opacity-40"
+          >
+            ← Prev
+          </button>
+          <span className="text-xs text-app-muted">Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="rounded-lg border border-app-border px-3 py-1.5 text-xs text-app-muted hover:text-app-text disabled:opacity-40"
+          >
+            Next →
+          </button>
+        </div>
+      )}
 
       {p2pErr && (
         <div className="mt-4 rounded-lg bg-red-900/20 px-4 py-3 text-xs text-red-400">
