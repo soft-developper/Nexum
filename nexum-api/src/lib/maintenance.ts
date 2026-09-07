@@ -23,8 +23,8 @@ import { sql } from 'drizzle-orm'
 
 export const SECTIONS = [
   'platform',      // everything
-  'convert',
-  'corridor',
+  'bridge',
+  'ramp',
   'send',
   'marketplace',
   'invoices',

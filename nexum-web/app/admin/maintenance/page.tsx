@@ -18,8 +18,8 @@ interface Row {
 
 const META: Record<string, { label: string; desc: string; icon: any }> = {
   platform:    { label: 'Whole platform', desc: 'Takes every section below offline at once', icon: Globe },
-  convert:     { label: 'Convert',        desc: 'Currency conversions', icon: ArrowLeftRight },
-  corridor:    { label: 'Corridor',       desc: 'Cross-border swaps',   icon: ArrowLeftRight },
+  bridge:      { label: 'Bridge',         desc: 'Cross-chain USDC transfers', icon: ArrowLeftRight },
+  ramp:        { label: 'On / Off-ramp',  desc: 'Fiat deposits and withdrawals', icon: ArrowLeftRight },
   send:        { label: 'Send',           desc: 'Wallet transfers',     icon: Send },
   marketplace: { label: 'Marketplace',    desc: 'P2P offers and trades', icon: Store },
   invoices:    { label: 'Invoices',       desc: 'Invoices and payments', icon: FileText },
