@@ -78,21 +78,43 @@ export async function provisionDisbursementWallet(
 ): Promise<DisbursementWallet> {
   const c = client()
 
-  const setRes = await c.createWalletSet({ name, idempotencyKey: randomUUID() })
-  const walletSetId = setRes.data?.walletSet?.id
-  if (!walletSetId) throw new Error('Circle did not return a wallet set id')
+  try {
+    const setRes = await c.createWalletSet({ name, idempotencyKey: randomUUID() })
+    const walletSetId = setRes.data?.walletSet?.id
+    if (!walletSetId) throw new Error('Circle did not return a wallet set id')
 
-  const walletsRes = await c.createWallets({
-    blockchains: [BLOCKCHAIN as any],
-    count:       1,
-    walletSetId,
-    accountType: ACCOUNT_TYPE as any,   // PHASE_7D: EOA by default (see const)
-    idempotencyKey: randomUUID(),
-  })
-  const w = walletsRes.data?.wallets?.[0]
-  if (!w?.id || !w?.address) throw new Error('Circle did not return a wallet')
+    const walletsRes = await c.createWallets({
+      blockchains: [BLOCKCHAIN as any],
+      count:       1,
+      walletSetId,
+      accountType: ACCOUNT_TYPE as any,   // PHASE_7D: EOA by default (see const)
+      idempotencyKey: randomUUID(),
+    })
+    const w = walletsRes.data?.wallets?.[0]
+    if (!w?.id || !w?.address) throw new Error('Circle did not return a wallet')
 
-  return { id: w.id, address: w.address, blockchain: String(w.blockchain ?? BLOCKCHAIN) }
+    return { id: w.id, address: w.address, blockchain: String(w.blockchain ?? BLOCKCHAIN) }
+  } catch (err: any) {
+    // Surface Circle's REAL structured error instead of a bare 502. errors[]
+    // names the bad field when present; log the full payload server-side so the
+    // exact cause shows in the Render logs, and throw a specific message.
+    const data   = err?.response?.data
+    const errors = Array.isArray(data?.errors) ? data.errors : []
+    const fieldMsgs = errors
+      .map((e: any) => [e?.location, e?.message].filter(Boolean).join(': '))
+      .filter(Boolean)
+      .join('; ')
+    console.error('[Disbursement] provision failed:', JSON.stringify({
+      status:  err?.response?.status,
+      code:    data?.code,
+      message: data?.message,
+      errors,
+      blockchain: BLOCKCHAIN,
+      accountType: ACCOUNT_TYPE,
+    }))
+    const detail = fieldMsgs || data?.message || err?.message || 'wallet provisioning rejected'
+    throw new Error(`Circle wallet provisioning failed: ${detail}`)
+  }
 }
 
 /** The current USDC balance of a developer-controlled wallet, as a number. */
