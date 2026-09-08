@@ -78,7 +78,7 @@ export async function provisionDisbursementWallet(
 ): Promise<DisbursementWallet> {
   const c = client()
 
-  const setRes = await c.createWalletSet({ name })
+  const setRes = await c.createWalletSet({ name, idempotencyKey: randomUUID() })
   const walletSetId = setRes.data?.walletSet?.id
   if (!walletSetId) throw new Error('Circle did not return a wallet set id')
 
@@ -87,6 +87,7 @@ export async function provisionDisbursementWallet(
     count:       1,
     walletSetId,
     accountType: ACCOUNT_TYPE as any,   // PHASE_7D: EOA by default (see const)
+    idempotencyKey: randomUUID(),
   })
   const w = walletsRes.data?.wallets?.[0]
   if (!w?.id || !w?.address) throw new Error('Circle did not return a wallet')
