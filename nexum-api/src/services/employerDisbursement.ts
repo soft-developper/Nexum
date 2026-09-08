@@ -69,7 +69,12 @@ export async function getOrCreateEmployerWallet(accountId: string): Promise<Empl
   }
 
   // Provision a fresh Circle developer-controlled wallet for this employer.
-  const w = await provisionDisbursementWallet(`Nexum Payroll - ${accountId}`)
+  // Circle's wallet-set NAME has a length limit (~50 chars) and rejects longer
+  // values with a generic "API parameter invalid". The employer id is a full
+  // wallet address (42 chars), so "Nexum Payroll - <addr>" (58 chars) overflows.
+  // Keep the name short + safe; the account_id column is the real identity.
+  const shortId = accountId.slice(0, 12)
+  const w = await provisionDisbursementWallet(`Nexum Payroll ${shortId}`)
   const now = Math.floor(Date.now() / 1000)
 
   // INSERT OR IGNORE so a concurrent provision can't create a duplicate PK row;
