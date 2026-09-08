@@ -1,6 +1,6 @@
 'use client'
 import { useWallet }   from '@/hooks/useWallet'
-import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
+import { useAccount }  from 'wagmi'
 import { useProfile }  from '@/hooks/useProfile'
 import Link            from 'next/link'
 import { Badge }       from '@/components/ui/badge'
@@ -24,13 +24,8 @@ export function WalletContent() {
   const { address }               = useAccount()
   const { data: profile }         = useProfile()
   const { data, isLoading, refetch } = useWallet()
-  const { balances: chainBalances, loading: chainsLoading, refresh: refreshChains } = useAllChainUsdcBalances()
+  const { balances: chainBalances } = useAllChainUsdcBalances()
   const [copied, setCopied]       = useState(false)
-
-  function refreshAll() {
-    refetch()
-    refreshChains()
-  }
 
   function copyAddress() {
     if (!address) return
@@ -39,13 +34,20 @@ export function WalletContent() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const totalUSD   = (data?.tokens ?? []).reduce((s, t) => s + t.usdValue, 0)
   const escrowUSD  = data?.escrow.locked ?? 0
-  const grandTotal = totalUSD + escrowUSD
   // All-chain USDC: sum across every supported chain (Arc included, since
   // it is chainBalances' home entry). USDC is 1:1 USD, so this is also its
   // USD value. This is the true cross-chain figure the header now leads with.
   const allChainUsdc = chainBalances.reduce((sum, b) => sum + b.balance, 0)
+  // Non-USDC token value (e.g. EURC). data.tokens' USDC entry is Arc-ONLY, so
+  // we must NOT add it to the all-chain figure (that double-counts Arc and
+  // omits other chains). Take everything EXCEPT USDC from tokens.
+  const nonUsdcUSD = (data?.tokens ?? [])
+    .filter(t => t.symbol !== 'USDC')
+    .reduce((s, t) => s + t.usdValue, 0)
+  // Grand total = every chain's USDC + non-USDC tokens + escrow. Previously this
+  // used an Arc-only figure + escrow, which under-counted multi-chain balances.
+  const grandTotal = allChainUsdc + nonUsdcUSD + escrowUSD
 
   // Per-chain USDC palette. Chains beyond this list fall back to indigo, so a
   // newly added chain still gets a slice/legend colour without a code change.
@@ -79,9 +81,9 @@ export function WalletContent() {
           <h1 className="text-xl font-semibold text-app-text">Wallet</h1>
           <p className="text-sm text-app-muted">Your USDC across all supported chains</p>
         </div>
-        <button onClick={refreshAll}
+        <button onClick={() => refetch()}
           className="flex items-center gap-1.5 rounded-lg border border-app-border px-3 py-1.5 text-xs text-app-muted hover:text-app-text">
-          <RefreshCw className={`h-3 w-3 ${isLoading || chainsLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -125,13 +127,11 @@ export function WalletContent() {
                 : <Copy className="h-3.5 w-3.5" />
               }
             </button>
-            {address && (
-              <a href={`https://testnet.arcscan.app/address/${address}`}
-                target="_blank" rel="noopener noreferrer"
-                className="shrink-0 text-app-muted hover:text-app-accent-text">
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
+            <a href={`https://testnet.arcscan.app/address/${address}`}
+              target="_blank" rel="noopener noreferrer"
+              className="shrink-0 text-app-muted hover:text-app-accent-text">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
 
           {/* Quick actions */}
@@ -207,11 +207,8 @@ export function WalletContent() {
         <p className="mb-4 text-sm font-medium text-app-text">Token balances</p>
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 
-          {/* Non-USDC tokens only (e.g. EURC). USDC is shown per-chain below,
-              so listing data.tokens' USDC too would duplicate the Arc balance. */}
-          {(data?.tokens ?? [{ symbol: 'EURC', name: 'Euro Coin', balance: 0, usdValue: 0, color: '#10B981', address: '' }])
-            .filter(token => token.symbol !== 'USDC')
-            .map(token => (
+          {/* USDC + EURC */}
+          {(data?.tokens ?? [{ symbol: 'USDC', name: 'USD Coin', balance: 0, usdValue: 0, color: '#378ADD', address: '' }, { symbol: 'EURC', name: 'Euro Coin', balance: 0, usdValue: 0, color: '#10B981', address: '' }]).map(token => (
             <div key={token.symbol}
               className="flex items-center gap-3 rounded-xl border border-app-border bg-app-bg p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold text-white"

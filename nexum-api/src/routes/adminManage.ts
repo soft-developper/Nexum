@@ -88,7 +88,25 @@ router.get('/overview', requirePermission(PERMISSIONS.VIEW_DASHBOARD), async (_r
     const pvr = parseRows(p2pVolRows)
     const p2pVol = Number(pvr[0]?.vol ?? pvr[0]?.[0] ?? 0)
 
-    const totalVolume = txs.reduce((s, t) => s + t.usdVol, 0) + p2pVol
+    // Bridge completed, invoices paid, payroll sent - platform-wide, to match
+    // the per-user weekly volume which now tracks all five protocols.
+    const bridgeVolRows = await db.run(
+      sql`SELECT SUM(amount) as vol FROM bridge_transfers WHERE status = 'completed'`)
+    const bvr = parseRows(bridgeVolRows)
+    const bridgeVol = Number(bvr[0]?.vol ?? bvr[0]?.[0] ?? 0)
+
+    const invVolRows = await db.run(
+      sql`SELECT SUM(COALESCE(usdc_amount, amount)) as vol FROM invoices WHERE status = 'paid'`)
+    const ivr = parseRows(invVolRows)
+    const invVol = Number(ivr[0]?.vol ?? ivr[0]?.[0] ?? 0)
+
+    const payVolRows = await db.run(
+      sql`SELECT SUM(total_amount) as vol FROM payroll_batches WHERE status IN ('completed', 'partial')`)
+    const pyr = parseRows(payVolRows)
+    const payVol = Number(pyr[0]?.vol ?? pyr[0]?.[0] ?? 0)
+
+    const totalVolume = txs.reduce((s, t) => s + t.usdVol, 0)
+      + p2pVol + bridgeVol + invVol + payVol
     const totalTxs    = txs.length
     const totalFees   = txs.reduce((s, t) => s + t.usdFee, 0)
 
@@ -400,8 +418,8 @@ router.get('/offers', requirePermission(PERMISSIONS.MANAGE_OFFERS), async (req, 
   const status = req.query.status as string
   try {
     const rows = status
-      ? await db.run(sql`SELECT * FROM p2p_offers WHERE status = ${status} ORDER BY created_at DESC`)
-      : await db.run(sql`SELECT * FROM p2p_offers ORDER BY created_at DESC`)
+      ? await db.run(sql`SELECT * FROM p2p_offers WHERE status = ${status} ORDER BY created_at DESC LIMIT 100`)
+      : await db.run(sql`SELECT * FROM p2p_offers ORDER BY created_at DESC LIMIT 100`)
     const offers = parseRows(rows)
 
     // Surface which offers are under dispute rather than hiding them:
@@ -490,7 +508,7 @@ router.get('/disputes', requirePermission(PERMISSIONS.RESOLVE_DISPUTES), async (
           FROM disputes d
           LEFT JOIN p2p_offers o ON o.id = d.offer_id
           WHERE d.status = ${status}
-          ORDER BY d.created_at DESC`
+          ORDER BY d.created_at DESC LIMIT 100`
     )
     res.json(parseRows(rows))
   } catch (err: any) { res.status(500).json({ error: err.message }) }
@@ -559,13 +577,6 @@ router.post('/disputes/:id/resolve', requirePermission(PERMISSIONS.RESOLVE_DISPU
 
     await logAction(admin.id, admin.username, 'resolve_dispute', 'dispute', req.params.id,
       `Resolved dispute via ${resolution}, tx ${hash.slice(0,14)}. Reason: ${reason ?? 'none'}`, req.ip)
-
-    // The admin action is now preserved in admin_audit_log (line above), so the
-    // resolved dispute row itself can be removed - it no longer needs to linger
-    // in the disputes table. Accountability lives in the audit log. Best-effort:
-    // a delete failure never fails the resolution.
-    await db.run(sql`DELETE FROM dispute_assignments WHERE dispute_id = ${req.params.id}`).catch(() => {})
-    await db.run(sql`DELETE FROM disputes WHERE id = ${req.params.id}`).catch(() => {})
 
     res.json({ success: true, txHash: hash, resolution })
   } catch (err: any) { res.status(500).json({ error: err.message }) }
@@ -654,7 +665,8 @@ router.get('/users', requirePermission(PERMISSIONS.MANAGE_USERS), async (req, re
                  OR LOWER(p.wallet_address) LIKE ${'%'+search+'%'}
                  OR LOWER(p.display_name) LIKE ${'%'+search+'%'}`
         : sql``}
-      ORDER BY ${sql.raw(orderCol)} ${sql.raw(dir)}`)
+      ORDER BY ${sql.raw(orderCol)} ${sql.raw(dir)}
+      LIMIT 100`)
 
     const users = parseRows(rows).map((r: any) => {
       const o = Array.isArray(r) ? {} : r
@@ -1080,15 +1092,11 @@ router.get('/analytics', requirePermission(PERMISSIONS.VIEW_ANALYTICS), async (_
 // the settled amount. Onramp currency 'usdc'/'usd' is already USD; offramp
 // destination currency converts via live rates.
 // ══════════════════════════════════════════════════════════
-router.get('/ramps', requirePermission(PERMISSIONS.VIEW_RAMPS), async (req, res) => {
+router.get('/ramps', requirePermission(PERMISSIONS.VIEW_RAMPS), async (_req, res) => {
   try {
     const now  = Math.floor(Date.now() / 1000)
     const day  = 86400
     const week = day * 7
-
-    // Optional filters/sort for the KYC customer list.
-    const provider = (req.query.provider as string | undefined)?.trim() || undefined
-    const custSort = String(req.query.sort ?? 'newest')
 
     const { getCachedRates } = await import('../services/rateOracle')
     const rateList = getCachedRates()
@@ -1105,16 +1113,12 @@ router.get('/ramps', requirePermission(PERMISSIONS.VIEW_RAMPS), async (req, res)
     const num = (v: any) => Number(v ?? 0) || 0
 
     // ---- KYC'd customers (joined to accounts for display) --------------------
-    // Optional provider filter; sort newest/oldest by signup. Volume sort is
-    // applied after we compute per-customer volume below (needs the aggregate).
-    const custOrder = custSort === 'oldest' ? sql`c.created_at ASC` : sql`c.created_at DESC`
     const custRows = parseRows(await db.run(sql`
       SELECT c.account_id, c.provider, c.customer_type, c.kyc_status, c.tos_status,
              c.created_at, a.username, a.email
         FROM ramp_customers c
         LEFT JOIN accounts a ON a.id = c.account_id
-       ${provider ? sql`WHERE c.provider = ${provider}` : sql``}
-       ORDER BY ${custOrder}`))
+       ORDER BY c.created_at DESC`))
 
     const customers = custRows.map((r: any) => ({
       accountId:    r.account_id ?? r[0],

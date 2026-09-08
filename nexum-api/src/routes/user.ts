@@ -114,6 +114,45 @@ router.get('/:address/stats', async (req, res) => {
       maker_address: r[3], taker_address: r[4], created_at: Number(r[5]),
     } : { ...r, usdc_amount: Number(r.usdc_amount), created_at: Number(r.created_at) })
 
+    // ── Bridge (completed), Invoices (paid-to-this-user), Payroll (sent) ──
+    // Weekly volume tracks each protocol at its COMPLETION moment, not creation.
+    const bridgeRows = await db.run(
+      sql`SELECT amount, created_at FROM bridge_transfers
+          WHERE LOWER(wallet_address) = ${addr}
+            AND status = 'completed'
+          ORDER BY created_at DESC LIMIT 300`
+    )
+    const bridges = parseRows(bridgeRows).map((r: any) => ({
+      amount:     Number(r.amount ?? r[0] ?? 0),
+      // bridge has no completed_at; created_at is the transfer's day.
+      created_at: Number(r.created_at ?? r[1] ?? 0),
+    }))
+
+    const invPaidRows = await db.run(
+      sql`SELECT COALESCE(usdc_amount, amount) AS amt, paid_at, created_at
+          FROM invoices
+          WHERE LOWER(creator_address) = ${addr}
+            AND status = 'paid'
+          ORDER BY created_at DESC LIMIT 300`
+    )
+    const invoicesPaid = parseRows(invPaidRows).map((r: any) => ({
+      amount: Number(r.amt ?? r[0] ?? 0),
+      // count on the moment it was paid (received from payer); fall back to created_at.
+      at:     Number(r.paid_at ?? r[1] ?? r.created_at ?? r[2] ?? 0),
+    }))
+
+    const payrollRows = await db.run(
+      sql`SELECT total_amount, executed_at, created_at FROM payroll_batches
+          WHERE LOWER(wallet_address) = ${addr}
+            AND status IN ('completed', 'partial')
+          ORDER BY created_at DESC LIMIT 300`
+    )
+    const payrolls = parseRows(payrollRows).map((r: any) => ({
+      amount: Number(r.total_amount ?? r[0] ?? 0),
+      // count when the batch was actually sent (executed); fall back to created_at.
+      at:     Number(r.executed_at ?? r[1] ?? r.created_at ?? r[2] ?? 0),
+    }))
+
     // ── Dispute warnings ──────────────────────────────────
     const userRows = await db.run(
       sql`SELECT dispute_warnings FROM users WHERE LOWER(wallet_address) = ${addr} LIMIT 1`
@@ -170,9 +209,24 @@ router.get('/:address/stats', async (req, res) => {
         )
         .reduce((s, o) => s + o.usdc_amount, 0)
 
+      // Bridge completed volume in this day
+      const bridgeV = bridges
+        .filter(b => b.created_at >= dayStart && b.created_at < dayEnd)
+        .reduce((s, b) => s + b.amount, 0)
+
+      // Invoice volume RECEIVED (paid) in this day
+      const invV = invoicesPaid
+        .filter(iv => iv.at >= dayStart && iv.at < dayEnd)
+        .reduce((s, iv) => s + iv.amount, 0)
+
+      // Payroll volume SENT (executed) in this day
+      const payV = payrolls
+        .filter(p => p.at >= dayStart && p.at < dayEnd)
+        .reduce((s, p) => s + p.amount, 0)
+
       return {
         label,
-        volume: parseFloat((txVol + p2pV).toFixed(2)),
+        volume: parseFloat((txVol + p2pV + bridgeV + invV + payV).toFixed(2)),
       }
     })
 
