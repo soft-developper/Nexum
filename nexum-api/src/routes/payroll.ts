@@ -532,4 +532,41 @@ router.get('/recipients/export', async (req, res) => {
   }
 })
 
+// ── TEMPORARY DIAGNOSTIC (remove after debugging) ─────────────────────────
+// Runs the exact wallet-provisioning call in Render's real runtime and returns
+// the FULL raw result/error as JSON. Guarded by DIAG_TOKEN.
+//   GET /payroll/_diag/provision?token=<DIAG_TOKEN>
+router.get('/_diag/provision', async (req, res) => {
+  const token = String(req.query.token ?? '')
+  const expected = process.env.DIAG_TOKEN ?? ''
+  if (!expected || token !== expected) return res.status(404).json({ error: 'not found' })
+
+  const info: any = {
+    node: process.version,
+    blockchain: process.env.CIRCLE_BLOCKCHAIN ?? 'ARC-TESTNET',
+    accountType: (process.env.CIRCLE_ACCOUNT_TYPE ?? 'EOA').toUpperCase(),
+    apiKeyFp: (process.env.CIRCLE_API_KEY ?? '').slice(0, 8) + '…' + (process.env.CIRCLE_API_KEY ?? '').slice(-4),
+    entitySecretLen: (process.env.CIRCLE_ENTITY_SECRET ?? '').length,
+    entitySecretIsHex64: /^[0-9a-fA-F]{64}$/.test(process.env.CIRCLE_ENTITY_SECRET ?? ''),
+  }
+  try {
+    const { provisionDisbursementWallet } = await import('../services/platformDisbursement')
+    const w = await provisionDisbursementWallet('Nexum diag ' + Date.now())
+    return res.json({ ok: true, info, wallet: w })
+  } catch (err: any) {
+    return res.json({
+      ok: false,
+      info,
+      error: {
+        name:    err?.name,
+        message: err?.message,
+        ctor:    err?.constructor?.name,
+        status:  err?.response?.status,
+        data:    err?.response?.data,
+        stack:   String(err?.stack ?? '').split('\n').slice(0, 8),
+      },
+    })
+  }
+})
+
 export default router
