@@ -105,13 +105,20 @@ export async function provisionDisbursementWallet(
       .filter(Boolean)
       .join('; ')
     console.error('[Disbursement] provision failed:', JSON.stringify({
+      // HTTP layer (populated only if Circle actually responded):
       status:  err?.response?.status,
       code:    data?.code,
       message: data?.message,
       errors,
+      // Raw error (populated when the failure is CLIENT-SIDE, e.g. entity-secret
+      // encryption before any request is sent - these name the real cause):
+      errName:    err?.name,
+      errMessage: err?.message,
+      errCtor:    err?.constructor?.name,
       blockchain: BLOCKCHAIN,
       accountType: ACCOUNT_TYPE,
     }))
+    if (err?.stack) console.error('[Disbursement] stack:', err.stack)
     const detail = fieldMsgs || data?.message || err?.message || 'wallet provisioning rejected'
     throw new Error(`Circle wallet provisioning failed: ${detail}`)
   }
