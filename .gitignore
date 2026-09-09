@@ -55,3 +55,8 @@ coverage/
 *.orig
 .nexum-*-backup/
 .*-backup/
+
+# Nexum v2 delivery machinery - never commit
+.nexum-v2-*-backups/
+.nexum-v2-*.applied
+nexum-v2-*.sh
