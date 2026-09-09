@@ -1,6 +1,6 @@
 'use client'
 // ============================================================
-// useBridge — the CCTP flow, signed by the user's CIRCLE wallet.
+// useBridge - the CCTP flow, signed by the user's CIRCLE wallet.
 //
 // STAGE 3b (Circle migration). Real money moves here, so the discipline is
 // unchanged from the wagmi version:
@@ -35,6 +35,7 @@ import {
 import {
   cctpContracts, irisBase, chainByKey, addressToBytes32, CCTP_ENV,
 } from '@/lib/cctp-chains'
+import { CONTRACTS } from '@/lib/contracts'
 import {
   // __NEXUM_BRIDGE_MODE__ (part2) Fast/Standard support
   getTransferQuote, fetchAttestation, toUnits,
@@ -136,7 +137,11 @@ export function useBridge() {
       setState(s => ({ ...s, bridgeId }))
 
       const contracts = cctpContracts()
-      const messenger = contracts.tokenMessenger as `0x${string}`
+      // v2.1: route the burn through the Nexum vault so the 0.1% bridge fee is
+      // taken atomically with depositForBurn. The user approves the VAULT for
+      // the gross amount; the vault keeps the fee and burns the net via the
+      // TokenMessenger (which it was wired to at deploy).
+      const vault = CONTRACTS.AFRIFX_VAULT
 
       /*
         CCTP burns an ERC-20, so burnToken MUST be a real token address. Fail
@@ -149,14 +154,14 @@ export function useBridge() {
           `Bridging from this chain can't proceed until it's set.`)
       }
 
-      // ── 2. Approve the TokenMessenger to spend USDC ──────
+      // ── 2. Approve the VAULT to spend USDC (gross) ───────
       // (on the SOURCE chain, signed by the wallet that lives there)
       setState(s => ({ ...s, step: 'approving' }))
       await executeContractCall({
         chainKey:             from.key,
         contractAddress:      from.usdc,
         abiFunctionSignature: 'approve(address,uint256)',
-        abiParameters:        [messenger, amountUnits.toString()],
+        abiParameters:        [vault, amountUnits.toString()],
       }, note)
 
       // ── 3. BURN on the source chain ──────────────────────
@@ -181,23 +186,21 @@ export function useBridge() {
       setState(s => ({ ...s, mode: quote.mode, quote }))
 
       /*
-        depositForBurn(amount, destinationDomain, mintRecipient, burnToken,
-                       destinationCaller, maxFee, minFinalityThreshold)
-        Circle's abiParameters wants: uint256 as decimal strings, address as
-        hex, bytes32 as hex. destinationCaller = bytes32(0) so ANY address may
-        finish the mint (our reconciler, or the user from another device).
+        bridgeWithFee(amount, destinationDomain, mintRecipient, maxFee,
+                      minFinalityThreshold) on the Nexum vault. The vault pulls
+        the gross `amount`, keeps 0.1%, and calls depositForBurn for the net
+        with burnToken = USDC and destinationCaller = bytes32(0) (permissionless
+        mint) internally. The user still receives the net on the destination.
       */
       const burnResult = await executeContractCall({
         chainKey:             from.key,
-        contractAddress:      messenger,
+        contractAddress:      vault,
         abiFunctionSignature:
-          'depositForBurn(uint256,uint32,bytes32,address,bytes32,uint256,uint32)',
+          'bridgeWithFee(uint256,uint32,bytes32,uint256,uint32)',
         abiParameters: [
           amountUnits.toString(),
           to.domain,
           addressToBytes32(recipient),
-          from.usdc,
-          `0x${'0'.repeat(64)}`,
           quote.maxFeeUnits.toString(),
           finalityThreshold,
         ],
@@ -241,7 +244,7 @@ export function useBridge() {
           att = await fetchAttestation(irisBase(), from.domain, burnTx)
           if (att.status === 'complete') break
         } catch {
-          // swallow and retry — the burn is safe either way
+          // swallow and retry - the burn is safe either way
         }
         setState(s => ({ ...s, waitedSec: Math.floor((Date.now() - startedAt) / 1000) }))
         await new Promise(r => setTimeout(r, POLL_MS))

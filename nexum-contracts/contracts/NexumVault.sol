@@ -6,6 +6,23 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./interfaces/IUSDC.sol";
 
+// Minimal CCTP V2 TokenMessenger interface (only the burn we need).
+// depositForBurn burns `amount` from the CALLER (this vault, after it holds the
+// net) and mints to `mintRecipient` on the destination domain. destinationCaller
+// = bytes32(0) leaves the mint permissionless (any address may call
+// receiveMessage on the destination), matching the existing bridge flow.
+interface ITokenMessenger {
+    function depositForBurn(
+        uint256 amount,
+        uint32  destinationDomain,
+        bytes32 mintRecipient,
+        address burnToken,
+        bytes32 destinationCaller,
+        uint256 maxFee,
+        uint32  minFinalityThreshold
+    ) external returns (uint64 nonce);
+}
+
 /**
  * @title NexumVault
  * @notice Handles FX conversion + P2P marketplace + invoice payments with an
@@ -32,14 +49,19 @@ contract NexumVault is Ownable, ReentrancyGuard, Pausable {
     // Platform fee, uniform across fee-bearing protocols. 10 bps = 0.10%.
     uint256 public p2pFeeBps      = 10;
     uint256 public invoiceFeeBps  = 10;
+    uint256 public bridgeFeeBps   = 10;
     uint256 public constant MAX_SPREAD_BPS = 200;
     uint256 public constant MAX_FEE_BPS    = 100; // hard cap 1% on any platform fee
+
+    // CCTP V2 TokenMessenger on this chain, used by bridgeWithFee. Settable by
+    // owner because the address is chain/environment-specific and may change.
+    ITokenMessenger public tokenMessenger;
 
     // ── Fee accounting ───────────────────────────────────────
     // Fees are collected inclusively (kept in the vault when a settlement pays
     // out amount-minus-fee) and tracked per protocol so withdrawFees can never
     // dip into escrowed user funds. Incremented ONLY on success.
-    enum FeeProtocol { P2P, Invoice }
+    enum FeeProtocol { P2P, Invoice, Bridge }
     mapping(FeeProtocol => uint256) public feesAccrued;      // lifetime collected
     mapping(FeeProtocol => uint256) public feesWithdrawn;    // lifetime withdrawn
 
@@ -86,6 +108,8 @@ contract NexumVault is Ownable, ReentrancyGuard, Pausable {
     event InvoicePaid(bytes32 indexed invoiceId, address indexed payer, address indexed creator, uint256 amount, uint256 fee);
     event ConversionRequested(address indexed user, uint256 amount, string currency, uint256 ts);
     event FeesWithdrawn(uint8 indexed protocol, address indexed to, uint256 amount);
+    event BridgeInitiated(address indexed user, uint256 grossAmount, uint256 net, uint256 fee, uint32 destinationDomain, bytes32 mintRecipient, uint64 nonce);
+    event TokenMessengerSet(address indexed messenger);
 
     constructor(address _usdc) Ownable(msg.sender) {
         usdc = IUSDC(_usdc);
@@ -274,6 +298,65 @@ contract NexumVault is Ownable, ReentrancyGuard, Pausable {
         emit InvoicePaid(invoiceId, msg.sender, creator, payout, fee);
     }
 
+    // ── Bridge (CCTP V2) with platform fee ───────────────────
+
+    /**
+     * @notice Bridge USDC cross-chain via CCTP, taking the 0.1% platform fee on
+     *         the source chain, atomically with the burn.
+     * @dev The user approves THIS vault for `amount`, then calls this. The vault
+     *      pulls `amount`, keeps `fee = amount * bridgeFeeBps / 10_000`, and
+     *      burns the NET via the CCTP TokenMessenger with the user as
+     *      mintRecipient. Fee and burn are one transaction: if the burn reverts,
+     *      the whole call reverts and no fee is taken. If the burn SUCCEEDS the
+     *      USDC is gone from this chain and the transfer will finalize on the
+     *      destination (CCTP attestations do not expire), so the fee is earned -
+     *      no refund path is needed. The user receives NET on the destination.
+     *      destinationCaller is bytes32(0), so the mint stays permissionless
+     *      (the user or a reconciler completes it), matching the current flow.
+     * @param amount               Gross USDC to bridge (6 decimals). Fee comes
+     *                             out of this; net = amount - fee is burned.
+     * @param destinationDomain    CCTP domain id of the destination chain.
+     * @param mintRecipient        Recipient on the destination, as bytes32.
+     * @param maxFee               CCTP V2 maxFee (from the bridge quote).
+     * @param minFinalityThreshold CCTP V2 finality threshold (from the quote).
+     */
+    function bridgeWithFee(
+        uint256 amount,
+        uint32  destinationDomain,
+        bytes32 mintRecipient,
+        uint256 maxFee,
+        uint32  minFinalityThreshold
+    ) external nonReentrant whenNotPaused returns (uint64 nonce) {
+        require(amount > 0,                          "Amount required");
+        require(mintRecipient != bytes32(0),         "No recipient");
+        require(address(tokenMessenger) != address(0), "Messenger not set");
+
+        uint256 fee = (amount * bridgeFeeBps) / 10_000;
+        uint256 net = amount - fee;
+        require(net > maxFee, "Net below CCTP maxFee");
+
+        // Pull gross from the user (they approved the vault), keep the fee.
+        usdc.transferFrom(msg.sender, address(this), amount);
+        feesAccrued[FeeProtocol.Bridge] += fee;
+
+        // Approve the messenger for the net and burn. Reset allowance to 0 first
+        // for tokens that require it before a new approval.
+        usdc.approve(address(tokenMessenger), 0);
+        usdc.approve(address(tokenMessenger), net);
+
+        nonce = tokenMessenger.depositForBurn(
+            net,
+            destinationDomain,
+            mintRecipient,
+            address(usdc),
+            bytes32(0),
+            maxFee,
+            minFinalityThreshold
+        );
+
+        emit BridgeInitiated(msg.sender, amount, net, fee, destinationDomain, mintRecipient, nonce);
+    }
+
     // ── Fee withdrawal (owner only, fee-only, never escrow) ──
 
     /**
@@ -287,7 +370,7 @@ contract NexumVault is Ownable, ReentrancyGuard, Pausable {
      * @notice Total platform fees still available across all protocols.
      */
     function totalFeesAvailable() external view returns (uint256) {
-        return feesAvailable(FeeProtocol.P2P) + feesAvailable(FeeProtocol.Invoice);
+        return feesAvailable(FeeProtocol.P2P) + feesAvailable(FeeProtocol.Invoice) + feesAvailable(FeeProtocol.Bridge);
     }
 
     /**
@@ -322,6 +405,17 @@ contract NexumVault is Ownable, ReentrancyGuard, Pausable {
     function setInvoiceFeeBps(uint256 _bps) external onlyOwner {
         require(_bps <= MAX_FEE_BPS, "Max 1%");
         invoiceFeeBps = _bps;
+    }
+
+    function setBridgeFeeBps(uint256 _bps) external onlyOwner {
+        require(_bps <= MAX_FEE_BPS, "Max 1%");
+        bridgeFeeBps = _bps;
+    }
+
+    function setTokenMessenger(address _messenger) external onlyOwner {
+        require(_messenger != address(0), "Zero messenger");
+        tokenMessenger = ITokenMessenger(_messenger);
+        emit TokenMessengerSet(_messenger);
     }
 
     function calcSpread(uint256 amount) public view returns (uint256) {

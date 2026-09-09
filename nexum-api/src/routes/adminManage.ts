@@ -1264,6 +1264,7 @@ function usdcToBase(amount: number): bigint {
 const FEE_PROTOCOLS: { key: string; protocol: FeeProtocol; label: string }[] = [
   { key: 'p2p',     protocol: FeeProtocol.P2P,     label: 'Marketplace (P2P)' },
   { key: 'invoice', protocol: FeeProtocol.Invoice, label: 'Invoices' },
+  { key: 'bridge',  protocol: FeeProtocol.Bridge,  label: 'Bridge' },
 ]
 
 // GET /admin/manage/fees - per-protocol accrued / withdrawn / available + total

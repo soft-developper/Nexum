@@ -10,10 +10,11 @@ import { arcTestnet, arcClient } from './arc'
 const PRIVATE_KEY   = process.env.PLATFORM_WALLET_PRIVATE_KEY as `0x${string}`
 const VAULT_ADDRESS = (process.env.NEXUM_VAULT_ADDRESS || process.env.AFRIFX_VAULT_ADDRESS) as `0x${string}`
 
-// FeeProtocol enum order MUST match NexumVault.sol: { P2P = 0, Invoice = 1 }.
+// FeeProtocol enum order MUST match NexumVault.sol: { P2P = 0, Invoice = 1, Bridge = 2 }.
 export enum FeeProtocol {
   P2P     = 0,
   Invoice = 1,
+  Bridge  = 2,
 }
 
 // Vault ABI: owner-only writes we sign here, plus the fee-accounting reads

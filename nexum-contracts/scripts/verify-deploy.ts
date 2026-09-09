@@ -16,6 +16,8 @@ const ABI = [
   'function owner() view returns (address)',
   'function p2pFeeBps() view returns (uint256)',
   'function invoiceFeeBps() view returns (uint256)',
+  'function bridgeFeeBps() view returns (uint256)',
+  'function tokenMessenger() view returns (address)',
   'function spreadBps() view returns (uint256)',
   'function paused() view returns (bool)',
   'function feesAccrued(uint8) view returns (uint256)',
@@ -52,6 +54,14 @@ async function main() {
 
   const invBps = await vault.invoiceFeeBps()
   rec('invoiceFeeBps()', invBps, 10, Number(invBps) === 10)
+
+  const brBps = await vault.bridgeFeeBps()
+  rec('bridgeFeeBps()', brBps, 10, Number(brBps) === 10)
+
+  // Bridge needs the CCTP TokenMessenger wired, or bridgeWithFee reverts.
+  const messenger = await vault.tokenMessenger()
+  const ZERO = '0x0000000000000000000000000000000000000000'
+  rec('tokenMessenger() set', messenger, 'non-zero (CCTP messenger)', messenger !== ZERO)
 
   // 4. Not paused (ready to take offers)
   const paused = await vault.paused()
