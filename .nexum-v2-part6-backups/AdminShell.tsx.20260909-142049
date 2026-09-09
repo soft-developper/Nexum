@@ -9,7 +9,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import {
   LayoutDashboard, Store, AlertTriangle, Users,
   Shield, ScrollText, BarChart3, LogOut, Loader2, Settings,
-  Menu, X, Sun, Moon, FileText, Mail, Megaphone, Wrench, ArrowLeftRight, Coins } from 'lucide-react'
+  Menu, X, Sun, Moon, FileText, Mail, Megaphone, Wrench, ArrowLeftRight } from 'lucide-react'
 
 // Full-width labeled theme toggle for the admin sidebar footer
 function ThemeToggleRow() {
@@ -42,9 +42,6 @@ const NAV = [
   // Maintenance is SUPER ADMIN ONLY -- taking the platform offline is too
   // dangerous to delegate, so it is not a grantable permission at all.
   { href: '/admin/maintenance', icon: Wrench,         label: 'Maintenance', perm: 'manage_admins', superOnly: true },
-  // Platform fees is SUPER ADMIN ONLY -- the fee treasury must never be
-  // delegatable to a sub-admin, so it is gated by role, not a permission.
-  { href: '/admin/fees',        icon: Coins,          label: 'Platform fees', perm: 'manage_admins', superOnly: true },
   { href: '/admin/analytics',  icon: BarChart3,       label: 'Analytics',  perm: 'view_analytics'   },
   { href: '/admin/ramps',      icon: ArrowLeftRight,  label: 'Ramps',      perm: 'view_ramps'       },
   { href: '/admin/audit',      icon: ScrollText,      label: 'Audit log',  perm: 'view_audit_log'   },

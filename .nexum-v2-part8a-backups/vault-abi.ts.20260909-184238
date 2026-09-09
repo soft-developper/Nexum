@@ -36,16 +36,6 @@ export const VAULT_P2P_ABI = [
     outputs: [],
   },
   {
-    type: 'function', name: 'payInvoice',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'invoiceId', type: 'bytes32' },
-      { name: 'creator',   type: 'address' },
-      { name: 'amount',    type: 'uint256' },
-    ],
-    outputs: [],
-  },
-  {
     type: 'function', name: 'getOffer',
     stateMutability: 'view',
     inputs: [{ name: 'offerId', type: 'bytes32' }],

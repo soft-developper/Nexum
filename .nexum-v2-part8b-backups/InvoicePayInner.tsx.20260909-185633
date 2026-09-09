@@ -270,8 +270,7 @@ function PayContent() {
     setStatus('submitting'); setErrMsg(null); setTxHash(null)
     try {
       const target = invoice.creator_address as string
-      const { fee, net } = platformFee(usdcAmount)
-      const outcome = await payWithCircle(target, usdcAmount, invoice.memo_ref)
+      const outcome = await payWithCircle(target, usdcAmount)
       if (outcome.needsSignin) {
         // No live Circle session. Do NOT try to run Circle login on this public
         // page (the SDK login callback lives on /signin - attempting it here is
@@ -288,7 +287,7 @@ function PayContent() {
       // Persist invoice-paid + payment record (same as the external path).
       await fetch(`${API}/invoices/ref/${invoice.memo_ref}/pay`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ txHash: hash ?? null, payerAddress: null, usdcAmount, platformFee: fee, netAmount: net }),
+        body: JSON.stringify({ txHash: hash ?? null, payerAddress: null, usdcAmount }),
       }).catch(() => {})
       await createPayment.mutateAsync({
         recipientAddress: invoice.creator_address,

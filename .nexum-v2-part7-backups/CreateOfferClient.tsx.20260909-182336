@@ -12,7 +12,6 @@ import { ArrowLeft, Info, CheckCircle, TrendingUp, Sliders, AlertCircle, Activit
 import Link from 'next/link'
 import { CurrencyCombobox } from '@/components/marketplace/CurrencyCombobox'
 import { NeedsReauthError } from '@/hooks/useCircleTx'
-import { platformFee, PLATFORM_FEE_LABEL } from '@/lib/fees'
 
 const TIMER_OPTIONS = [
   { label: '30 min',  value: 1800 },
@@ -58,13 +57,8 @@ export function CreateOfferClient() {
     ? marketRate
     : marketRate * (1 + limitOffset / 100)
 
-  // The buyer receives usdcAmount minus the platform fee (inclusive model).
-  // Fiat is priced on this NET amount so the buyer pays fiat only for the USDC
-  // they actually receive, and the fee comes off the maker's fiat proceeds.
-  const netUsdc = platformFee(parseFloat(usdcAmount) || 0).net
-
-  const localAmount = netUsdc > 0 && effectiveRate > 0
-    ? netUsdc * effectiveRate
+  const localAmount = usdcAmount && effectiveRate > 0
+    ? parseFloat(usdcAmount) * effectiveRate
     : 0
 
   // The offer locks usdcAmount of USDC from the wallet; keep a small gas buffer.
@@ -339,11 +333,10 @@ export function CreateOfferClient() {
               {[
                 ['Order type', orderType],
                 ['You lock',   `${usdcAmount} USDC`],
-                ['Platform fee', `${platformFee(parseFloat(usdcAmount)).fee.toFixed(4)} USDC (${PLATFORM_FEE_LABEL})`],
-                ['Buyer receives', `${platformFee(parseFloat(usdcAmount)).net.toFixed(4)} USDC`],
                 ['You receive', `${localAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${localCurrency}`],
                 ['Buyer window', timerSeconds >= 3600 ? `${timerSeconds/3600}h` : `${timerSeconds/60}min`],
                 ['Duration',    'Perpetual until filled or cancelled'],
+                ['Platform fee', `${(parseFloat(usdcAmount) * 0.003).toFixed(4)} USDC (0.3%)`],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between">
                   <span>{label}</span>

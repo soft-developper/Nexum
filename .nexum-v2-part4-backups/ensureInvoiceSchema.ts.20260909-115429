@@ -16,12 +16,6 @@ const COLUMNS: Array<{ name: string; ddl: string }> = [
   { name: 'recipient_email', ddl: 'ALTER TABLE invoices ADD COLUMN recipient_email TEXT' },
   { name: 'email_note',      ddl: 'ALTER TABLE invoices ADD COLUMN email_note TEXT' },
   { name: 'due_notified_at', ddl: 'ALTER TABLE invoices ADD COLUMN due_notified_at INTEGER' },
-  // v2 platform-fee split: recorded when an invoice is paid through the vault
-  // (payInvoice). platform_fee = fee kept by the vault; net_amount = what the
-  // creator actually received (gross usdc_amount - platform_fee). Both nullable
-  // so pre-v2 rows and non-vault payments are unaffected.
-  { name: 'platform_fee',    ddl: 'ALTER TABLE invoices ADD COLUMN platform_fee REAL' },
-  { name: 'net_amount',      ddl: 'ALTER TABLE invoices ADD COLUMN net_amount REAL' },
 ]
 
 async function existingColumns(): Promise<Set<string>> {

@@ -15,7 +15,6 @@ import {
   adminMessageEmail,
   invoiceReminderEmail,
   tradeAutoCancelledEmail,
-  tradeReopenedEmail,
 } from './templates'
 
 function parseRows(r: any): any[] {
@@ -656,49 +655,6 @@ export async function notifyTradeAutoCancelled(params: {
   if (params.takerWallet) {
     await notifyParty(takerProfile, params.takerWallet, 'taker', makerProfile)
   }
-}
-
-// ─── Trade reopened to marketplace (taker timed out) ────────
-// Only the MAKER is notified: their buyer did not send in time, so the offer
-// returned to the marketplace (funds stayed escrowed). Includes the buyer's
-// Nexum account name + handle so the maker knows who timed out.
-export async function notifyTradeReopened(params: {
-  makerWallet:   string
-  takerWallet:   string | null
-  usdcAmount:    number
-  localAmount:   number
-  localCurrency: string
-  offerId:       string
-}) {
-  const makerProfile = await getProfile(params.makerWallet)
-  if (!makerProfile?.email || !makerProfile.notify_trades) return
-
-  const takerProfile = params.takerWallet ? await getProfile(params.takerWallet) : null
-  const buyerName    = takerProfile ? getDisplayName(takerProfile) : 'The buyer'
-  const buyerHandle  = takerProfile?.username ? `@${takerProfile.username}` : ''
-
-  const template = tradeReopenedEmail({
-    makerName:     getDisplayName(makerProfile),
-    buyerName,
-    buyerHandle,
-    usdcAmount:    params.usdcAmount,
-    localAmount:   params.localAmount,
-    localCurrency: params.localCurrency,
-    offerId:       params.offerId,
-  })
-
-  const notifId = await queueAndSend({
-    userWallet:     params.makerWallet, type: 'trade_reopened',
-    subject:        template.subject, payload: params,
-    recipientEmail: makerProfile.email,
-  })
-
-  const result = await sendEmail({
-    to: makerProfile.email, subject: template.subject, html: template.html,
-  })
-
-  if (result.success) await markSent(notifId, result.id ?? null)
-  else await markFailed(notifId, result.error ?? 'unknown')
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -184,7 +184,7 @@ async function emailCancellation(invoiceId: string): Promise<void> {
 // PATCH /invoices/ref/:ref/pay mark paid or failed by memo ref
 // Called by frontend after on-chain confirmation with receipt.status
 router.patch('/ref/:ref/pay', async (req, res) => {
-  const { txHash, payerAddress, status: txStatus, usdcAmount, platformFee, netAmount } = req.body
+  const { txHash, payerAddress, status: txStatus, usdcAmount } = req.body
   const now = Math.floor(Date.now() / 1000)
 
   try {
@@ -232,8 +232,6 @@ router.patch('/ref/:ref/pay', async (req, res) => {
             payment_tx_hash = COALESCE(${txHash ?? null}, payment_tx_hash),
             payer_address   = COALESCE(${payerAddress?.toLowerCase() ?? null}, payer_address),
             usdc_amount     = COALESCE(${usdcAmount ?? null}, usdc_amount),
-            platform_fee    = COALESCE(${platformFee ?? null}, platform_fee),
-            net_amount      = COALESCE(${netAmount ?? null}, net_amount),
             paid_at         = ${now},
             updated_at      = ${now}
           WHERE memo_ref = ${req.params.ref}`

@@ -18,7 +18,6 @@ import {
 import type { P2POffer } from '@/types'
 import { useProfileByAddress } from '@/hooks/useProfile'
 import { DisputeStatus } from '@/components/dispute/DisputeStatus'
-import { platformFee, PLATFORM_FEE_LABEL } from '@/lib/fees'
 import { CURRENCY_FLAG } from '@/lib/corridor'
 import type { Currency } from '@/types'
 
@@ -106,7 +105,7 @@ export default function OfferDetailPage() {
   const { data: takerProfile } = useProfileByAddress(offer?.taker_address ?? null)
 
   // Live FX for float offers. MUST run unconditionally (before any early
-  // return) to keep hook order stable - offer may be null on first render,
+  // return) to keep hook order stable — offer may be null on first render,
   // so guard the pair string; useRate tolerates a non-matching pair.
   const { rate: liveFx } = useRate(`${offer?.local_currency ?? ''}/USDC`)
 
@@ -238,13 +237,10 @@ export default function OfferDetailPage() {
 
   // Float offers track the live rate WHILE OPEN; once accepted the server has
   // frozen local_amount, so we fall back to the stored value automatically.
-  // While a float offer is open the fiat tracks the live rate, priced on the
-  // NET usdc (after platform fee) so the buyer pays fiat only for the USDC they
-  // actually receive - matching how local_amount was computed at creation.
   const isFloat = (offer.order_type ?? 'market') === 'float'
   const displayLocalAmount =
     isFloat && offer.status === 'open' && liveFx?.rate
-      ? platformFee(Number(offer.usdc_amount)).net * Number(liveFx.rate)
+      ? Number(offer.usdc_amount) * Number(liveFx.rate)
       : Number(offer.local_amount)
   const localAmountFormatted = displayLocalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })
 
@@ -388,19 +384,6 @@ export default function OfferDetailPage() {
                 ? Number(liveFx.rate)
                 : (Number(offer.rate_offered) > 0 ? 1 / Number(offer.rate_offered) : 0)
               ).toFixed(2)} {offer.local_currency}
-            </span>
-          </div>
-
-          <div className="mt-2 flex justify-between text-xs">
-            <span className="text-app-muted">Platform fee ({PLATFORM_FEE_LABEL})</span>
-            <span className="font-mono text-app-text">
-              {platformFee(Number(offer.usdc_amount)).fee.toFixed(4)} USDC
-            </span>
-          </div>
-          <div className="mt-2 flex justify-between text-xs">
-            <span className="text-app-muted">Buyer receives</span>
-            <span className="font-mono text-app-text">
-              {platformFee(Number(offer.usdc_amount)).net.toFixed(4)} USDC
             </span>
           </div>
 

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAccount, useWriteContract, usePublicClient, useConfig, useChainId, useDisconnect } from 'wagmi'
-import { parseUnits, keccak256, toHex } from 'viem'
+import { parseUnits } from 'viem'
 import { useInvoiceByRef } from '@/hooks/useInvoices'
 import { useCreatePayment } from '@/hooks/usePayments'
 import { useFXRates } from '@/hooks/useFXRate'
@@ -13,8 +13,6 @@ import { ConnectButton } from '@/components/wallet/ConnectButton'
 import { formatAmount } from '@/lib/utils'
 import { CONTRACTS, USDC_DECIMALS } from '@/lib/contracts'
 import { USDC_ABI } from '@/lib/usdc'
-import { VAULT_P2P_ABI } from '@/lib/vault-abi'
-import { platformFee, PLATFORM_FEE_LABEL } from '@/lib/fees'
 import { arcTestnet } from '@/lib/arc-chain'
 import { ensureArcChain } from '@/lib/ensure-arc-chain'
 import { useInvoiceCirclePay, hasCircleSession } from '@/hooks/useInvoiceCirclePay'
@@ -166,35 +164,18 @@ function PayContent() {
       // Make sure the external wallet is on Arc (adds the chain if missing).
       await ensureArcChain(wagmiConfig, currentChainId)
 
-      // Route the payment THROUGH the vault so the 0.1% platform fee is split
-      // on-chain: the vault keeps the fee and forwards (amount - fee) to the
-      // creator. Two steps for an external wallet: approve the vault to pull
-      // USDC, then payInvoice. The invoice is reconciled by its DB memo_ref;
-      // on-chain we key it by keccak256(memo_ref) so a given invoice can only
-      // be paid once (vault guards invoicePaid[invoiceId]).
-      const usdcRaw   = parseUnits(usdcAmount.toFixed(6), USDC_DECIMALS)
-      const target    = invoice.creator_address as `0x${string}`
-      const vault     = CONTRACTS.AFRIFX_VAULT
-      const invoiceId = keccak256(toHex(invoice.memo_ref))
-      const { fee, net } = platformFee(usdcAmount)
+      // Plain USDC transfer for both EOA and Circle payers. The invoice is
+      // reconciled by its DB memo_ref (matched server-side), so no on-chain
+      // memo is needed here - dropping it removes the Arc memo precompile as a
+      // failure source and keeps the pay path simple and robust.
+      const usdcRaw = parseUnits(usdcAmount.toFixed(6), USDC_DECIMALS)
+      const target  = invoice.creator_address as `0x${string}`
 
-      // 1. Approve the vault to spend exactly this amount.
-      const approveHash = await writeContractAsync({
+      hash = await writeContractAsync({
         address:      CONTRACTS.USDC,
         abi:          USDC_ABI,
-        functionName: 'approve',
-        args:         [vault, usdcRaw],
-      })
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash: approveHash })
-      }
-
-      // 2. Pay the invoice through the vault (fee split happens on-chain).
-      hash = await writeContractAsync({
-        address:      vault,
-        abi:          VAULT_P2P_ABI,
-        functionName: 'payInvoice',
-        args:         [invoiceId, target, usdcRaw],
+        functionName: 'transfer',
+        args:         [target, usdcRaw],
       })
 
       setTxHash(hash)
@@ -233,7 +214,7 @@ function PayContent() {
       await fetch(`${API}/invoices/ref/${invoice.memo_ref}/pay`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ txHash: hash, payerAddress: address, usdcAmount, platformFee: fee, netAmount: net }),
+        body:    JSON.stringify({ txHash: hash, payerAddress: address, usdcAmount }),
       }).catch(() => {})
 
       // Record the payment row - NON-FATAL. A failure here must never flip the
@@ -270,8 +251,7 @@ function PayContent() {
     setStatus('submitting'); setErrMsg(null); setTxHash(null)
     try {
       const target = invoice.creator_address as string
-      const { fee, net } = platformFee(usdcAmount)
-      const outcome = await payWithCircle(target, usdcAmount, invoice.memo_ref)
+      const outcome = await payWithCircle(target, usdcAmount)
       if (outcome.needsSignin) {
         // No live Circle session. Do NOT try to run Circle login on this public
         // page (the SDK login callback lives on /signin - attempting it here is
@@ -288,7 +268,7 @@ function PayContent() {
       // Persist invoice-paid + payment record (same as the external path).
       await fetch(`${API}/invoices/ref/${invoice.memo_ref}/pay`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ txHash: hash ?? null, payerAddress: null, usdcAmount, platformFee: fee, netAmount: net }),
+        body: JSON.stringify({ txHash: hash ?? null, payerAddress: null, usdcAmount }),
       }).catch(() => {})
       await createPayment.mutateAsync({
         recipientAddress: invoice.creator_address,
@@ -356,27 +336,6 @@ function PayContent() {
             </p>
           )}
         </div>
-
-        {/* Fee breakdown shown before payment so the payer sees exactly what
-            they pay and what the creator receives (0.1% platform fee). */}
-        {!alreadyPaid && !isCancelled && usdcAmount > 0 && (
-          <div className="mb-5 rounded-xl border border-app-border bg-app-surface p-4 text-xs">
-            <div className="space-y-1.5 text-app-muted">
-              <div className="flex justify-between">
-                <span>You pay</span>
-                <span className="font-mono text-app-text">{formatAmount(usdcAmount, 6)} USDC</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Platform fee ({PLATFORM_FEE_LABEL})</span>
-                <span className="font-mono text-app-text">{formatAmount(platformFee(usdcAmount).fee, 6)} USDC</span>
-              </div>
-              <div className="flex justify-between border-t border-app-border pt-1.5">
-                <span>Creator receives</span>
-                <span className="font-mono text-app-text">{formatAmount(platformFee(usdcAmount).net, 6)} USDC</span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Invoice details */}
         <div className="mb-5 space-y-2 text-xs">

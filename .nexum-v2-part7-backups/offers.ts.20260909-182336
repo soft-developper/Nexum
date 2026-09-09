@@ -191,12 +191,7 @@ router.patch('/:id', async (req, res) => {
       const _rateRow = Array.isArray((_rateRows as any).rows) ? (_rateRows as any).rows[0] : (_rateRows as any)[0]
       const _liveRate = Number(_rateRow?.rate ?? _rateRow?.[0] ?? 0)
       if (_liveRate > 0 && _usdc > 0) {
-        // Price the frozen fiat on the NET usdc (after the 0.1% platform fee),
-        // so a float buyer pays fiat only for the USDC they actually receive -
-        // matching how local_amount is computed at creation. 10 bps = 0.10%,
-        // mirrors NexumVault.sol p2pFeeBps.
-        const _netUsdc     = _usdc - (_usdc * 10) / 10_000
-        const _frozenLocal = _netUsdc * _liveRate
+        const _frozenLocal = _usdc * _liveRate
         const _rateOffered = _usdc / _frozenLocal   // USDC per local unit, matches creation convention
         await db.run(sql`UPDATE p2p_offers
             SET local_amount = ${_frozenLocal}, rate_offered = ${_rateOffered}, updated_at = ${now}

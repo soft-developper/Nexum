@@ -1,14 +1,14 @@
 // ============================================================
 // P2P Release Watcher 4 jobs:
 // Job1: release when both confirmed (every 15s)
-// Job2: reopen to marketplace when taker timer expires + taker NOT confirmed (every 60s)
+// Job2: auto-cancel when taker timer expires + taker NOT confirmed (every 60s)
 // Job3: auto-release to taker after 24h when maker goes silent (every 5min)
 // Job4: clean up released/cancelled trade chats (every 5min)
 // ============================================================
 import { db }               from '../db/client'
 import { sql }              from 'drizzle-orm'
-import { releasePlatform, reopenPlatform } from '../services/platformWallet'
-import { notifyTradeCompleted, notifyTradeReopened } from '../services/email/notifications'
+import { releasePlatform, cancelPlatform } from '../services/platformWallet'
+import { notifyTradeCompleted, notifyTradeAutoCancelled } from '../services/email/notifications'
 import { pruneTrades } from '../services/retention'
 
 function parseRows(r: any): any[] {
@@ -65,60 +65,41 @@ async function releaseOffer(offerId: string, label: string) {
   }
 }
 
-// Reopen a timed-out offer back to the marketplace INSTEAD of cancelling it.
-// On-chain: reopenP2POffer keeps the USDC escrowed in place and resets the
-// offer to Open (clears taker + both confirmations). DB: flip the row back to
-// 'open' and clear taker_address + deadlines + confirmations, so it reappears
-// with its original parameters and any new taker can accept it (the accept
-// route requires status='open' and sets a fresh taker_deadline).
-async function reopenOffer(offerId: string, label: string) {
-  console.log(`[P2PWatcher] ${label}: reopening ${offerId.slice(0,18)}...`)
+async function cancelOffer(offerId: string, label: string) {
+  console.log(`[P2PWatcher] ${label}: cancelling ${offerId.slice(0,18)}…`)
   try {
-    // Capture the parties + amounts BEFORE the reopen nulls the taker, so we
-    // can tell the maker which buyer timed out.
-    const beforeRows = await db.run(sql`
-      SELECT maker_address, taker_address, usdc_amount, local_amount, local_currency
-      FROM p2p_offers WHERE id = ${offerId} LIMIT 1
-    `)
-    const before = parseRows(beforeRows)[0]
-
-    const hash = await reopenPlatform(offerId as `0x${string}`)
+    const hash = await cancelPlatform(offerId as `0x${string}`, 'Taker timer expired, auto cancelled')
     const now  = Math.floor(Date.now() / 1000)
     await db.run(sql`
       UPDATE p2p_offers SET
-        status          = 'open',
-        taker_address   = NULL,
-        taker_confirmed = 0,
-        maker_confirmed = 0,
-        taker_deadline  = NULL,
-        maker_deadline  = NULL,
-        updated_at      = ${now}
+        status     = 'cancelled',
+        updated_at = ${now}
       WHERE id = ${offerId}
     `)
-    // Clear the trade chat from the abandoned acceptance so a fresh taker
-    // starts clean (mirrors the cleanup done on release).
-    await db.run(sql`DELETE FROM messages WHERE offer_id = ${offerId}`)
-    console.log(`[P2PWatcher] ${label} reopened to marketplace, tx: ${hash}`)
+    console.log(`[P2PWatcher] ${label} cancelled ✅ tx: ${hash}`)
 
-    // Notify the MAKER that their buyer timed out and the offer is back on the
-    // marketplace. Non-fatal - a failed email must never affect the reopen.
-    if (before) {
-      const makerAddr = before.maker_address ?? before[0] ?? ''
-      const takerAddr = before.taker_address ?? before[1] ?? null
-      if (makerAddr) {
-        notifyTradeReopened({
-          makerWallet:   makerAddr,
-          takerWallet:   takerAddr,
-          usdcAmount:    Number(before.usdc_amount ?? before[2] ?? 0),
-          localAmount:   Number(before.local_amount ?? before[3] ?? 0),
-          localCurrency: before.local_currency ?? before[4] ?? '',
+    // Notify both parties by email
+    try {
+      const oRows = await db.run(sql`
+        SELECT maker_address, taker_address, usdc_amount
+        FROM p2p_offers WHERE id = ${offerId} LIMIT 1
+      `)
+      const o = parseRows(oRows)[0]
+      if (o) {
+        const makerAddr = o.maker_address ?? o[0] ?? ''
+        notifyTradeAutoCancelled({
+          makerWallet: makerAddr,
+          takerWallet: o.taker_address ?? o[1] ?? null,
+          usdcAmount:  Number(o.usdc_amount ?? o[2] ?? 0),
           offerId,
-        }).catch((err: any) => console.error('[Notify] trade_reopened:', err.message))
+        }).catch((err: any) => console.error('[Notify] auto_cancelled:', err.message))
+        if (makerAddr) { void pruneTrades(makerAddr) }
       }
-    }
+    } catch {}
+
     return true
   } catch (err: any) {
-    console.error(`[P2PWatcher] ${label} reopen failed:`, err.message)
+    console.error(`[P2PWatcher] ${label} cancel failed:`, err.message)
     return false
   }
 }
@@ -145,7 +126,7 @@ export function startP2PReleaseWatcher() {
     } catch (err: any) { console.error('[P2PWatcher] Job1 error:', err.message) }
   }, 15_000)
 
-  // ── Job2: Reopen to marketplace when taker timer expires (every 60s) ─
+  // ── Job2: Auto-cancel when taker timer expires (every 60s) ─
   setInterval(async () => {
     const now = Math.floor(Date.now() / 1000)
     try {
@@ -158,7 +139,7 @@ export function startP2PReleaseWatcher() {
         LIMIT 5
       `)
       for (const r of parseRows(rows)) {
-        await reopenOffer(r.id ?? r[0], 'Job2')
+        await cancelOffer(r.id ?? r[0], 'Job2')
       }
     } catch (err: any) { console.error('[P2PWatcher] Job2 error:', err.message) }
   }, 60_000)
@@ -204,5 +185,5 @@ export function startP2PReleaseWatcher() {
     } catch (err: any) { console.error('[P2PWatcher] Job4 error:', err.message) }
   }, 5 * 60_000)
 
-  console.log('[P2PWatcher] started, Job1:15s release | Job2:60s reopen | Job3:5min | Job4:5min')
+  console.log('[P2PWatcher] started, Job1:15s | Job2:60s | Job3:5min | Job4:5min')
 }

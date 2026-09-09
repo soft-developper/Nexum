@@ -7,15 +7,7 @@ import {
   hashPassword, normalizeAdmin, logAction,
 } from '../lib/adminAuth'
 import { PERMISSIONS, ALL_PERMISSIONS, PERMISSION_META } from '../lib/permissions'
-import {
-  releasePlatform,
-  cancelPlatform,
-  FeeProtocol,
-  withdrawFeesPlatform,
-  readFeeSummary,
-  readTotalFeesAvailable,
-} from '../services/platformWallet'
-import { isAddress } from 'viem'
+import { releasePlatform, cancelPlatform } from '../services/platformWallet'
 
 const router = Router()
 
@@ -1222,114 +1214,6 @@ router.get('/ramps', requirePermission(PERMISSIONS.VIEW_RAMPS), async (_req, res
   } catch (err: any) {
     console.error('[admin/ramps] error:', err?.message)
     res.status(500).json({ error: err?.message ?? 'Failed to load ramp analytics' })
-  }
-})
-
-// ══════════════════════════════════════════════════════════
-// PLATFORM FEES (SUPER-ADMIN ONLY, never a grantable permission)
-// ══════════════════════════════════════════════════════════
-// Fee viewing AND withdrawal are gated to the main admin (super_admin) by a
-// hard role check - NOT by requirePermission - so no sub-admin can be granted
-// access to the fee treasury via the permissions system. Kept deliberately
-// separate from MANAGE_TREASURY (which stays for other treasury features).
-
-// Hard super-admin gate for the fee endpoints below.
-function requireSuperAdmin(req: any, res: any, next: any) {
-  const admin = req.admin
-  if (!admin) return res.status(401).json({ error: 'Not authenticated' })
-  if (admin.role !== 'super_admin') {
-    return res.status(403).json({
-      error: 'Fee treasury is restricted to the main admin.',
-      code:  'super_admin_only',
-    })
-  }
-  next()
-}
-
-// USDC has 6 decimals. Base units (bigint on-chain) -> human USDC number.
-const USDC_DECIMALS = 6
-const USDC_UNIT = 1_000_000n
-function baseToUsdc(base: bigint): number {
-  // Keep 6-dp precision without float drift on the integer part.
-  const whole = base / USDC_UNIT
-  const frac  = base % USDC_UNIT
-  return Number(whole) + Number(frac) / 1e6
-}
-function usdcToBase(amount: number): bigint {
-  // amount is human USDC (e.g. 12.5). Round to 6 dp then to base units.
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error('Invalid amount')
-  return BigInt(Math.round(amount * 1e6))
-}
-
-const FEE_PROTOCOLS: { key: string; protocol: FeeProtocol; label: string }[] = [
-  { key: 'p2p',     protocol: FeeProtocol.P2P,     label: 'Marketplace (P2P)' },
-  { key: 'invoice', protocol: FeeProtocol.Invoice, label: 'Invoices' },
-]
-
-// GET /admin/manage/fees - per-protocol accrued / withdrawn / available + total
-router.get('/fees', requireSuperAdmin, async (_req, res) => {
-  try {
-    const protocols = await Promise.all(
-      FEE_PROTOCOLS.map(async (p) => {
-        const s = await readFeeSummary(p.protocol)
-        return {
-          key:       p.key,
-          label:     p.label,
-          accrued:   { base: s.accrued.toString(),   usdc: baseToUsdc(s.accrued)   },
-          withdrawn: { base: s.withdrawn.toString(),  usdc: baseToUsdc(s.withdrawn) },
-          available: { base: s.available.toString(),  usdc: baseToUsdc(s.available) },
-        }
-      })
-    )
-    const totalBase = await readTotalFeesAvailable()
-    res.json({
-      decimals: USDC_DECIMALS,
-      protocols,
-      totalAvailable: { base: totalBase.toString(), usdc: baseToUsdc(totalBase) },
-    })
-  } catch (err: any) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// POST /admin/manage/fees/withdraw - withdraw collected fees for one protocol.
-// Body: { protocol: 'p2p'|'invoice', to: '0x..', amount: <human USDC number> }
-// On-chain withdrawFees is itself bounded to feesAvailable(protocol), so this
-// can never touch user escrow even if the amount passed is wrong.
-router.post('/fees/withdraw', requireSuperAdmin, async (req: any, res) => {
-  const admin = req.admin
-  const { protocol, to, amount } = req.body ?? {}
-
-  const entry = FEE_PROTOCOLS.find((p) => p.key === protocol)
-  if (!entry)                return res.status(400).json({ error: 'Unknown protocol' })
-  if (!to || !isAddress(to)) return res.status(400).json({ error: 'Valid recipient address required' })
-  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
-    return res.status(400).json({ error: 'Valid amount (USDC) required' })
-  }
-
-  try {
-    const amountBase = usdcToBase(amount)
-
-    // Guard in the API too (clear error) though the contract also enforces it.
-    const summary = await readFeeSummary(entry.protocol)
-    if (amountBase > summary.available) {
-      return res.status(400).json({
-        error: 'Amount exceeds available fees for this protocol',
-        available: { base: summary.available.toString(), usdc: baseToUsdc(summary.available) },
-      })
-    }
-
-    const hash = await withdrawFeesPlatform(entry.protocol, to as `0x${string}`, amountBase)
-
-    await logAction(
-      admin.id, admin.username, 'withdraw_platform_fees', 'fees', entry.key,
-      `Withdrew ${amount} USDC of ${entry.label} fees to ${to}, tx ${hash.slice(0,14)}`,
-      req.ip,
-    ).catch(() => {})
-
-    res.json({ success: true, txHash: hash, protocol: entry.key, amount, to })
-  } catch (err: any) {
-    res.status(500).json({ error: err.message })
   }
 })
 

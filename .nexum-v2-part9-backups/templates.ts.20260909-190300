@@ -580,49 +580,9 @@ Auto-cancellation happens when either party does not act within the timer window
   return { subject, html: base2(content, preview), previewText: preview }
 }
 
-// ─── Trade reopened to marketplace (taker timed out) ────────
-// v2: instead of auto-cancelling back to the maker, a timed-out accepted offer
-// returns to the marketplace with funds still escrowed. Only the MAKER is
-// notified: their buyer did not send within the window and the offer is live
-// again for someone else to take.
-export function tradeReopenedEmail(params: {
-  makerName:    string
-  buyerName:    string
-  buyerHandle:  string
-  usdcAmount:   number
-  localAmount:  number
-  localCurrency: string
-  offerId:      string
-}) {
-  const subject = 'Your offer is back on the marketplace'
-  const preview = `${params.buyerName} did not send payment in time. Your offer is live again.`
-
-  const content = `
-<h1 style="margin:0 0 12px;color:${TEXT_PRI};font-size:22px;font-weight:600;line-height:1.3;">
-Your offer is back on the marketplace
-</h1>
-<p style="margin:0 0 8px;color:${TEXT_SEC};font-size:14px;line-height:1.6;">
-Hi ${params.makerName},
-</p>
-<p style="margin:0 0 16px;color:${TEXT_SEC};font-size:14px;line-height:1.6;">
-<strong style="color:${TEXT_PRI};">${params.buyerName}</strong>${params.buyerHandle ? ` (${params.buyerHandle})` : ''} accepted your offer but did not send the ${params.localCurrency} payment within the response window and did not mark it as sent. Rather than cancelling the trade, we have returned your offer to the marketplace with the same terms, so another buyer can take it. Your USDC stayed safely in escrow the whole time - nothing was moved.
-</p>
-
-${card2([
-  { label: 'You are selling', value: `${params.usdcAmount} USDC` },
-  { label: 'For',             value: `${params.localAmount.toLocaleString()} ${params.localCurrency}` },
-  { label: 'Buyer who timed out', value: `${params.buyerName}${params.buyerHandle ? ` (${params.buyerHandle})` : ''}` },
-  { label: 'Status',          value: '↩️ Back on the marketplace' },
-])}
-
-${btn2('View your offer', `${APP_URL_2}/marketplace`)}
-
-<p style="margin:16px 0 0;color:${TEXT_SEC};font-size:12px;line-height:1.5;">
-An offer returns to the marketplace when the buyer does not act within the timer window you set. Your funds remain in escrow throughout, so you never need to re-list or re-lock anything.
-</p>`
-
-  return { subject, html: base2(content, preview), previewText: preview }
-}
+// ─────────────────────────────────────────────────────────────
+// Wave 3 Templates
+// ─────────────────────────────────────────────────────────────
 
 const BRAND_3 = '#3DD6E0'
 const BG_3    = '#0B1020'

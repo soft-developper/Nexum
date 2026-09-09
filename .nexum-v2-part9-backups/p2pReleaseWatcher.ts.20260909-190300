@@ -8,7 +8,7 @@
 import { db }               from '../db/client'
 import { sql }              from 'drizzle-orm'
 import { releasePlatform, reopenPlatform } from '../services/platformWallet'
-import { notifyTradeCompleted, notifyTradeReopened } from '../services/email/notifications'
+import { notifyTradeCompleted } from '../services/email/notifications'
 import { pruneTrades } from '../services/retention'
 
 function parseRows(r: any): any[] {
@@ -74,14 +74,6 @@ async function releaseOffer(offerId: string, label: string) {
 async function reopenOffer(offerId: string, label: string) {
   console.log(`[P2PWatcher] ${label}: reopening ${offerId.slice(0,18)}...`)
   try {
-    // Capture the parties + amounts BEFORE the reopen nulls the taker, so we
-    // can tell the maker which buyer timed out.
-    const beforeRows = await db.run(sql`
-      SELECT maker_address, taker_address, usdc_amount, local_amount, local_currency
-      FROM p2p_offers WHERE id = ${offerId} LIMIT 1
-    `)
-    const before = parseRows(beforeRows)[0]
-
     const hash = await reopenPlatform(offerId as `0x${string}`)
     const now  = Math.floor(Date.now() / 1000)
     await db.run(sql`
@@ -99,23 +91,6 @@ async function reopenOffer(offerId: string, label: string) {
     // starts clean (mirrors the cleanup done on release).
     await db.run(sql`DELETE FROM messages WHERE offer_id = ${offerId}`)
     console.log(`[P2PWatcher] ${label} reopened to marketplace, tx: ${hash}`)
-
-    // Notify the MAKER that their buyer timed out and the offer is back on the
-    // marketplace. Non-fatal - a failed email must never affect the reopen.
-    if (before) {
-      const makerAddr = before.maker_address ?? before[0] ?? ''
-      const takerAddr = before.taker_address ?? before[1] ?? null
-      if (makerAddr) {
-        notifyTradeReopened({
-          makerWallet:   makerAddr,
-          takerWallet:   takerAddr,
-          usdcAmount:    Number(before.usdc_amount ?? before[2] ?? 0),
-          localAmount:   Number(before.local_amount ?? before[3] ?? 0),
-          localCurrency: before.local_currency ?? before[4] ?? '',
-          offerId,
-        }).catch((err: any) => console.error('[Notify] trade_reopened:', err.message))
-      }
-    }
     return true
   } catch (err: any) {
     console.error(`[P2PWatcher] ${label} reopen failed:`, err.message)
