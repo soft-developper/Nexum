@@ -164,9 +164,6 @@ function SendPageInner() {
     <div>
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-app-text">Send</h1>
-        <p className="text-sm text-app-muted">
-          Send USDC to any address, on any chain your wallet holds USDC.
-        </p>
       </div>
 
       <div className="w-full max-w-md rounded-2xl border border-app-border bg-app-surface p-5">
@@ -313,3 +310,4 @@ export default function SendPage() {
     </SectionGuard>
   )
 }
+// __NEXUM_DASH_CLEANUP_A__ 20260910-130315

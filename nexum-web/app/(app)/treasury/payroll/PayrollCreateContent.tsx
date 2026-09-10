@@ -158,7 +158,7 @@ export function PayrollCreateContent() {
         <div>
           <h1 className="text-xl font-semibold text-app-text">New payroll batch</h1>
           <p className="text-sm text-app-muted">
-            Send USDC to multiple wallets · each payment gets a unique Memo reference
+            Send USDC to multiple wallets · each payment carries a unique reference
           </p>
         </div>
       </div>
@@ -311,7 +311,7 @@ Jane Smith,0xabcd...1234,50`}</pre>
               ))}
               <div className="border-t border-app-border pt-2 flex justify-between">
                 <span className="text-app-muted">Each payment</span>
-                <span className="text-app-muted">Gets unique Memo ref</span>
+                <span className="text-app-muted">Gets unique reference</span>
               </div>
             </div>
 
@@ -334,7 +334,7 @@ Jane Smith,0xabcd...1234,50`}</pre>
                 'Create batch with recipient list',
                 'Review, confirm amounts are correct',
                 'Execute, approve USDC, then send to each recipient',
-                'Each payment gets a unique Memo reference (PAY-YYYYMMDD-XXXX)',
+                'Each payment carries a unique reference (PAY-YYYYMMDD-XXXX)',
                 'Track status live as payments confirm on Arc',
               ].map((s, i) => (
                 <li key={i} className="flex gap-2">
@@ -349,3 +349,4 @@ Jane Smith,0xabcd...1234,50`}</pre>
     </div>
   )
 }
+// __NEXUM_DASH_CLEANUP_A__ 20260910-130315

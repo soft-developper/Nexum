@@ -286,11 +286,13 @@ function ProfileContent() {
                 : <Copy className="h-3.5 w-3.5" />
               }
             </button>
-            <a href={`https://testnet.arcscan.app/address/${address}`}
-              target="_blank" rel="noopener noreferrer"
-              className="shrink-0 text-app-muted hover:text-app-accent-text">
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            {address && (
+              <a href={`https://testnet.arcscan.app/address/${address}`}
+                target="_blank" rel="noopener noreferrer"
+                className="shrink-0 text-app-muted hover:text-app-accent-text">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
           </div>
 
           {/* Socials */}
@@ -467,3 +469,4 @@ function ProfileContent() {
     </div>
   )
 }
+// __NEXUM_DASH_CLEANUP_A__ 20260910-130315

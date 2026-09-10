@@ -29,9 +29,6 @@ export default function BridgePage() {
       <div>
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-app-text">Bridge</h1>
-          <p className="text-sm text-app-muted">
-            Move native USDC between Arc and other chains using Circle&apos;s CCTP.
-          </p>
         </div>
         <ClientOnly fallback={<BridgeSkeleton />}>
           <BridgeCard />
@@ -42,3 +39,4 @@ export default function BridgePage() {
     </SectionGuard>
   )
 }
+// __NEXUM_DASH_CLEANUP_A__ 20260910-130315
