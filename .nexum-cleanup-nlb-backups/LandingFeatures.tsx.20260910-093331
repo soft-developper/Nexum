@@ -1,7 +1,7 @@
 'use client'
 import { Reveal } from './Reveal'
 import {
-  ArrowDownUp, Globe, Send, Store, FileText,
+  ArrowDownUp, Globe, Send, Store, FileText, BarChart3,
   Building2, CreditCard, Wallet, LayoutDashboard, History, User, TrendingUp,
 } from 'lucide-react'
 
@@ -70,6 +70,12 @@ const GROUPS: Group[] = [
         name: 'Invoices',
         overview: 'Create shareable payment requests that anyone can pay in USDC, with a PDF receipt emailed on completion.',
         useCase: 'Send a client a payment link; they pay in USDC and both of you get a receipt automatically.',
+      },
+      {
+        icon: BarChart3,
+        name: 'Settlements',
+        overview: 'A full, exportable history of your payments with USD equivalents, ready for accounting.',
+        useCase: 'Export a month of settlements with USD values for your bookkeeper at tax time.',
       },
     ],
   },

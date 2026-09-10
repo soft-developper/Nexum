@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import { db }     from '../db/client'
 import { notifyWelcome } from '../services/email/notifications'
-import { pruneNotifications } from '../services/retention'
 import { sql }    from 'drizzle-orm'
 
 const router = Router()
@@ -17,10 +16,6 @@ function parseRows(r: any): any[] {
 router.get('/', async (req, res) => {
   const wallet = (req.query.wallet as string)?.toLowerCase()
   if (!wallet) return res.status(400).json({ error: 'wallet required' })
-
-  // Best-effort: drop this user's READ notifications older than 7 days before
-  // returning the list. Unread are never pruned. Non-fatal.
-  await pruneNotifications(wallet).catch(() => {})
 
   try {
     const rows = await db.run(sql`

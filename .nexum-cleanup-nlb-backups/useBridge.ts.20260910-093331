@@ -1,6 +1,6 @@
 'use client'
 // ============================================================
-// useBridge - the CCTP flow, signed by the user's CIRCLE wallet.
+// useBridge — the CCTP flow, signed by the user's CIRCLE wallet.
 //
 // STAGE 3b (Circle migration). Real money moves here, so the discipline is
 // unchanged from the wagmi version:
@@ -122,12 +122,18 @@ export function useBridge() {
     const note = (m: string) => setState(s => ({ ...s, note: m }))
 
     try {
-      // ── 1. Prepare (do NOT create a DB row yet) ──────────
-      // The row is created only once the user is actually about to burn (after
-      // approve), so typing an amount and walking away leaves no orphan "not
-      // started" row in Recent bridges.
+      // ── 1. Record BEFORE anything is signed ──────────────
       const requestedMode: TransferMode = params.mode ?? 'fast'
       setState({ ...INITIAL, step: 'creating', mode: requestedMode })
+      const created = await api('/bridge', {
+        walletAddress: address,
+        fromChain: from.key, toChain: to.key,
+        fromDomain: from.domain, toDomain: to.domain,
+        amount: params.amount, recipient,
+        mode: requestedMode,
+      })
+      bridgeId = created.id
+      setState(s => ({ ...s, bridgeId }))
 
       const contracts = cctpContracts()
       const messenger = contracts.tokenMessenger as `0x${string}`
@@ -154,19 +160,7 @@ export function useBridge() {
       }, note)
 
       // ── 3. BURN on the source chain ──────────────────────
-      // Create the DB row NOW - the user has approved and we're about to burn,
-      // so this row always corresponds to a real in-flight bridge (never an
-      // abandoned amount-entry). Captures every burn for recovery.
       setState(s => ({ ...s, step: 'burning' }))
-      const created = await api('/bridge', {
-        walletAddress: address,
-        fromChain: from.key, toChain: to.key,
-        fromDomain: from.domain, toDomain: to.domain,
-        amount: params.amount, recipient,
-        mode: requestedMode,
-      })
-      bridgeId = created.id
-      setState(s => ({ ...s, bridgeId }))
       await api(`/bridge/${bridgeId}/burning`, {})
 
       /*
@@ -247,7 +241,7 @@ export function useBridge() {
           att = await fetchAttestation(irisBase(), from.domain, burnTx)
           if (att.status === 'complete') break
         } catch {
-          // swallow and retry - the burn is safe either way
+          // swallow and retry — the burn is safe either way
         }
         setState(s => ({ ...s, waitedSec: Math.floor((Date.now() - startedAt) / 1000) }))
         await new Promise(r => setTimeout(r, POLL_MS))

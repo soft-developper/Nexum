@@ -107,22 +107,3 @@ export async function prunePayroll(wallet: string): Promise<void> {
     console.error('[Retention] prune payroll failed (non-fatal):', e?.message ?? e)
   }
 }
-
-/** NOTIFICATIONS - time-based, not count-based. Delete a user's READ
- *  notifications older than 7 days. Unread notifications are NEVER deleted,
- *  however old, so nothing the user hasn't seen is lost. Per-user, best-effort,
- *  non-fatal (same contract as the pruners above). */
-export async function pruneNotifications(wallet: string): Promise<void> {
-  try {
-    if (!wallet) return
-    const cutoff = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60
-    await db.run(sql`
-      DELETE FROM notifications
-       WHERE LOWER(user_wallet) = ${lc(wallet)}
-         AND read_at IS NOT NULL
-         AND created_at < ${cutoff}
-    `)
-  } catch (e: any) {
-    console.error('[Retention] prune notifications failed (non-fatal):', e?.message ?? e)
-  }
-}

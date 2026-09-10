@@ -48,13 +48,7 @@ export function BridgeHistory() {
     try {
       const res  = await fetch(`${API}/bridge?wallet=${address}`)
       const data = await res.json()
-      // Hide rows that never actually burned: legacy orphans from abandoned
-      // amount-entry (created/failed with no burn_tx). A real bridge always has
-      // a burn_tx once it starts, or is still mid-flight. Nothing with moved
-      // funds is ever hidden.
-      const cleaned = (Array.isArray(data) ? data : []).filter((r: BridgeRow) =>
-        !!r.burn_tx || !['created', 'failed'].includes(String(r.status)))
-      setRows(cleaned)
+      setRows(Array.isArray(data) ? data : [])
     } catch { /* keep the previous list rather than blanking it */ }
     finally { setLoading(false) }
   }, [address])
@@ -80,7 +74,7 @@ export function BridgeHistory() {
     switch (status) {
       case 'completed': return { icon: CheckCircle,   cls: 'text-emerald-400', label: 'Complete' }
       case 'cancelled': return { icon: XCircle,       cls: 'text-app-muted',   label: 'Cancelled' }
-      case 'failed':    return { icon: AlertTriangle, cls: 'text-red-400',     label: 'Failed' }
+      case 'failed':    return { icon: AlertTriangle, cls: 'text-red-400',     label: 'Not started' }
       default:          return { icon: Clock,         cls: 'text-amber-400',   label: 'In progress' }
     }
   }
@@ -177,7 +171,7 @@ export function BridgeHistory() {
                   {finish.busyId === r.id && finish.note && (
                     <p className="mt-1 text-[10px] text-app-muted">{finish.note}</p>
                   )}
-                  {/* Only show a failure on the row that actually failed -
+                  {/* Only show a failure on the row that actually failed —
                       never under a transfer that is merely waiting to attest. */}
                   {finish.errorId === r.id && finish.busyId === null && finish.error && (
                     <p className="mt-1 text-[10px] text-red-700 dark:text-red-300">{finish.error}</p>
