@@ -28,7 +28,6 @@
 // ============================================================
 
 import { useState, useCallback } from 'react'
-import { createPublicClient, http } from 'viem'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import {
   executeContractCall, NeedsReauthError, NeedsChainError, UserCancelledError,
@@ -37,7 +36,6 @@ import {
   cctpContracts, irisBase, chainByKey, addressToBytes32, CCTP_ENV,
 } from '@/lib/cctp-chains'
 import { CONTRACTS } from '@/lib/contracts'
-import { evmChainId, rpcUrlFor } from '@/lib/bridge-chains'
 import {
   // __NEXUM_BRIDGE_MODE__ (part2) Fast/Standard support
   getTransferQuote, fetchAttestation, toUnits,
@@ -95,48 +93,6 @@ async function api(path: string, body?: unknown) {
     throw new Error(d.error ?? `API ${res.status}`)
   }
   return res.json()
-}
-
-// Minimal ERC-20 allowance read for the confirm-before-burn gate.
-const ALLOWANCE_ABI = [{
-  type: 'function', name: 'allowance', stateMutability: 'view',
-  inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }],
-  outputs: [{ name: '', type: 'uint256' }],
-}] as const
-
-/*
-  Wait until the user's USDC allowance to the vault is actually on-chain before
-  calling bridgeWithFee. Circle's contractExecution for the approve returns when
-  the device challenge is approved, NOT when the approve tx is mined - so the
-  vault's transferFrom would otherwise revert with "transfer amount exceeds
-  allowance". We poll the real allowance on the SOURCE chain until it covers the
-  amount (or time out). Reads only; no signing.
-*/
-async function waitForAllowance(params: {
-  fromKey: string
-  usdc:    `0x${string}`
-  owner:   `0x${string}`
-  spender: `0x${string}`
-  amount:  bigint
-  timeoutMs?: number
-}): Promise<boolean> {
-  const { fromKey, usdc, owner, spender, amount, timeoutMs = 90_000 } = params
-  const chainId = evmChainId(fromKey)
-  const rpc = chainId ? rpcUrlFor(chainId) : undefined
-  if (!rpc) return true // can't poll (no RPC) - don't block; burn will surface any issue
-
-  const client = createPublicClient({ transport: http(rpc) })
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    try {
-      const current = await client.readContract({
-        address: usdc, abi: ALLOWANCE_ABI, functionName: 'allowance', args: [owner, spender],
-      }) as bigint
-      if (current >= amount) return true
-    } catch { /* transient RPC error - keep polling */ }
-    await new Promise(r => setTimeout(r, 2500))
-  }
-  return false
 }
 
 export function useBridge() {
@@ -207,24 +163,6 @@ export function useBridge() {
         abiFunctionSignature: 'approve(address,uint256)',
         abiParameters:        [vault, amountUnits.toString()],
       }, note)
-
-      // Wait until the approve is actually mined (allowance visible on-chain)
-      // before the burn. executeContractCall returns on device-approval, not on
-      // confirmation, so without this the vault's transferFrom reverts with
-      // "transfer amount exceeds allowance".
-      setState(s => ({ ...s, step: 'approving', note: 'Confirming approval on-chain...' }))
-      const allowanceReady = await waitForAllowance({
-        fromKey: from.key,
-        usdc:    from.usdc as `0x${string}`,
-        owner:   address as `0x${string}`,
-        spender: vault as `0x${string}`,
-        amount:  amountUnits,
-      })
-      if (!allowanceReady) {
-        throw new Error(
-          'Approval did not confirm on-chain in time. No funds were moved - ' +
-          'please try the bridge again in a moment.')
-      }
 
       // ── 3. BURN on the source chain ──────────────────────
       setState(s => ({ ...s, step: 'burning' }))
