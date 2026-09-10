@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useCreateBatch } from '@/hooks/usePayroll'
-import { useUSDCBalance } from '@/hooks/useUSDCBalance'
+import { useDisbursementFloat } from '@/hooks/useDisbursementFloat'
 import { formatAmount } from '@/lib/utils'
 import { ArrowLeft, Plus, Trash2, Upload, Users, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -25,7 +25,8 @@ function isValidAddress(addr: string): boolean {
 
 export function PayrollCreateContent() {
   const router              = useRouter()
-  const { formatted: balance } = useUSDCBalance()
+  const { data: float } = useDisbursementFloat()
+  const floatBalance = float?.balance != null ? formatAmount(float.balance) : '0.00'
   const createBatch         = useCreateBatch()
 
   const [batchName,    setBatchName]    = useState('')
@@ -302,7 +303,7 @@ Jane Smith,0xabcd...1234,50`}</pre>
               {[
                 ['Recipients',      `${validCount} valid`],
                 ['Total payout',    `${formatAmount(totalAmount)} USDC`],
-                ['Your balance',    `${balance} USDC`],
+                ['Payroll float',   `${floatBalance} USDC`],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-app-muted">{label}</span>
@@ -350,3 +351,4 @@ Jane Smith,0xabcd...1234,50`}</pre>
   )
 }
 // __NEXUM_DASH_CLEANUP_A__ 20260910-130315
+// __NEXUM_DASH_CLEANUP_B__ 20260910-132813

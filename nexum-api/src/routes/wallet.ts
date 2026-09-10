@@ -101,7 +101,7 @@ router.get('/:address', async (req, res) => {
     // ── Recent transactions ───────────────────────────────
     const txRows = await db.run(
       sql`SELECT id, from_currency, to_currency, from_amount, to_amount,
-                 status, arc_tx_hash, reference, created_at
+                 status, arc_tx_hash, reference, created_at, from_chain
           FROM transactions
           WHERE LOWER(wallet_address) = ${addr.toLowerCase()}
           ORDER BY created_at DESC LIMIT 10`
@@ -110,11 +110,12 @@ router.get('/:address', async (req, res) => {
       id: r[0], fromCurrency: r[1], toCurrency: r[2],
       fromAmount: Number(r[3]), toAmount: Number(r[4]),
       status: r[5], arcTxHash: r[6], reference: r[7], createdAt: Number(r[8]),
+      fromChain: r[9] ?? null,
     } : {
       id: r.id, fromCurrency: r.from_currency, toCurrency: r.to_currency,
       fromAmount: Number(r.from_amount), toAmount: Number(r.to_amount),
       status: r.status, arcTxHash: r.arc_tx_hash, reference: r.reference,
-      createdAt: Number(r.created_at),
+      createdAt: Number(r.created_at), fromChain: r.from_chain ?? null,
     })
 
     // EURC USD value: 1 EURC ≈ 1/rate USDC (rate = local per USD, EUR rate gives us EUR/USD)
@@ -147,3 +148,4 @@ router.get('/:address', async (req, res) => {
 })
 
 export default router
+// __NEXUM_DASH_CLEANUP_B__ 20260910-132813

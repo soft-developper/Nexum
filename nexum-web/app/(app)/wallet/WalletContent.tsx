@@ -18,6 +18,7 @@ import { useState } from 'react'
 import { formatAmount } from '@/lib/utils'
 import { useTokens } from '@/lib/tokens'
 import { useAllChainUsdcBalances } from '@/hooks/useAllChainUsdcBalances'
+import { chainByKey } from '@/lib/cctp-chains'
 
 export function WalletContent() {
   const t                         = useTokens()
@@ -352,7 +353,7 @@ export function WalletContent() {
                     </Badge>
                   </div>
                   {tx.arcTxHash && (
-                    <a href={`https://testnet.arcscan.app/tx/${tx.arcTxHash}`}
+                    <a href={`${chainByKey((tx as any).fromChain ?? 'arc')?.explorer ?? 'https://testnet.arcscan.app'}/tx/${tx.arcTxHash}`}
                       target="_blank" rel="noopener noreferrer" className="shrink-0">
                       <ExternalLink className="h-3 w-3 text-app-muted hover:text-app-accent-text" />
                     </a>
@@ -371,3 +372,4 @@ export function WalletContent() {
   )
 }
 // __NEXUM_DASH_CLEANUP_A__ 20260910-130315
+// __NEXUM_DASH_CLEANUP_B__ 20260910-132813

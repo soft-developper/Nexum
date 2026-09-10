@@ -89,7 +89,7 @@ router.get('/:address/stats', async (req, res) => {
         from_amount: Number(r[4]), to_amount: Number(r[5]),
         spread_fee: Number(r[6]), network_fee: Number(r[7]),
         arc_tx_hash: r[8], memo_id: r[9], reference: r[10],
-        status: r[13], created_at: Number(r[15] ?? r[14]),
+        status: r[13], created_at: Number(r[15] ?? r[14]), from_chain: r[16],
       } : {
         ...r,
         from_amount: Number(r.from_amount),
@@ -284,6 +284,7 @@ router.get('/:address/stats', async (req, res) => {
       status:       t.status,
       reference:    t.reference,
       arcTxHash:    t.arc_tx_hash,
+      fromChain:    t.from_chain ?? null,
       createdAt:    t.created_at,
     }))
 
@@ -323,3 +324,4 @@ router.get('/:address/stats', async (req, res) => {
 })
 
 export default router
+// __NEXUM_DASH_CLEANUP_B__ 20260910-132813

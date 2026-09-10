@@ -10,6 +10,7 @@ import { ClientOnly }        from '@/components/ui/client-only'
 import { ProfileAvatar }     from '@/components/profile/ProfileAvatar'
 import { Badge }             from '@/components/ui/badge'
 import { useTokens }         from '@/lib/tokens'
+import { chainByKey }        from '@/lib/cctp-chains'
 import {
   BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, Tooltip,
@@ -28,6 +29,7 @@ interface RecentTx {
   id: string; fromCurrency: string; toCurrency: string
   fromAmount: number; toAmount: number; usdVolume: number
   status: string; reference: string; arcTxHash: string; createdAt: number
+  fromChain?: string | null
 }
 interface VolumeSplit { month: number; allTime: number; countMonth: number; countAll: number }
 interface DashboardStats {
@@ -322,7 +324,7 @@ function DashboardContent() {
                     </Badge>
                   </div>
                   {tx.arcTxHash && (
-                    <a href={`https://testnet.arcscan.app/tx/${tx.arcTxHash}`}
+                    <a href={`${chainByKey(tx.fromChain ?? 'arc')?.explorer ?? 'https://testnet.arcscan.app'}/tx/${tx.arcTxHash}`}
                       target="_blank" rel="noopener noreferrer" className="shrink-0">
                       <ExternalLink className="h-3 w-3 text-app-muted hover:text-app-accent-text" />
                     </a>
@@ -367,3 +369,4 @@ function DashboardSkeleton() {
     </div>
   )
 }
+// __NEXUM_DASH_CLEANUP_B__ 20260910-132813
