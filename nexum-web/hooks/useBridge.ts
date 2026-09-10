@@ -1,6 +1,6 @@
 'use client'
 // ============================================================
-// useBridge - the CCTP flow, signed by the user's CIRCLE wallet.
+// useBridge — the CCTP flow, signed by the user's CIRCLE wallet.
 //
 // STAGE 3b (Circle migration). Real money moves here, so the discipline is
 // unchanged from the wagmi version:
@@ -28,7 +28,6 @@
 // ============================================================
 
 import { useState, useCallback } from 'react'
-import { createPublicClient, http } from 'viem'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import {
   executeContractCall, NeedsReauthError, NeedsChainError, UserCancelledError,
@@ -36,8 +35,6 @@ import {
 import {
   cctpContracts, irisBase, chainByKey, addressToBytes32, CCTP_ENV,
 } from '@/lib/cctp-chains'
-import { CONTRACTS } from '@/lib/contracts'
-import { evmChainId, rpcUrlFor } from '@/lib/bridge-chains'
 import {
   // __NEXUM_BRIDGE_MODE__ (part2) Fast/Standard support
   getTransferQuote, fetchAttestation, toUnits,
@@ -97,48 +94,6 @@ async function api(path: string, body?: unknown) {
   return res.json()
 }
 
-// Minimal ERC-20 allowance read for the confirm-before-burn gate.
-const ALLOWANCE_ABI = [{
-  type: 'function', name: 'allowance', stateMutability: 'view',
-  inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }],
-  outputs: [{ name: '', type: 'uint256' }],
-}] as const
-
-/*
-  Wait until the user's USDC allowance to the vault is actually on-chain before
-  calling bridgeWithFee. Circle's contractExecution for the approve returns when
-  the device challenge is approved, NOT when the approve tx is mined - so the
-  vault's transferFrom would otherwise revert with "transfer amount exceeds
-  allowance". We poll the real allowance on the SOURCE chain until it covers the
-  amount (or time out). Reads only; no signing.
-*/
-async function waitForAllowance(params: {
-  fromKey: string
-  usdc:    `0x${string}`
-  owner:   `0x${string}`
-  spender: `0x${string}`
-  amount:  bigint
-  timeoutMs?: number
-}): Promise<boolean> {
-  const { fromKey, usdc, owner, spender, amount, timeoutMs = 90_000 } = params
-  const chainId = evmChainId(fromKey)
-  const rpc = chainId ? rpcUrlFor(chainId) : undefined
-  if (!rpc) return true // can't poll (no RPC) - don't block; burn will surface any issue
-
-  const client = createPublicClient({ transport: http(rpc) })
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    try {
-      const current = await client.readContract({
-        address: usdc, abi: ALLOWANCE_ABI, functionName: 'allowance', args: [owner, spender],
-      }) as bigint
-      if (current >= amount) return true
-    } catch { /* transient RPC error - keep polling */ }
-    await new Promise(r => setTimeout(r, 2500))
-  }
-  return false
-}
-
 export function useBridge() {
   const { address } = useAccount()
   const [state, setState] = useState<BridgeState>(INITIAL)
@@ -181,11 +136,7 @@ export function useBridge() {
       setState(s => ({ ...s, bridgeId }))
 
       const contracts = cctpContracts()
-      // v2.1: route the burn through the Nexum vault so the 0.1% bridge fee is
-      // taken atomically with depositForBurn. The user approves the VAULT for
-      // the gross amount; the vault keeps the fee and burns the net via the
-      // TokenMessenger (which it was wired to at deploy).
-      const vault = CONTRACTS.AFRIFX_VAULT
+      const messenger = contracts.tokenMessenger as `0x${string}`
 
       /*
         CCTP burns an ERC-20, so burnToken MUST be a real token address. Fail
@@ -198,33 +149,15 @@ export function useBridge() {
           `Bridging from this chain can't proceed until it's set.`)
       }
 
-      // ── 2. Approve the VAULT to spend USDC (gross) ───────
+      // ── 2. Approve the TokenMessenger to spend USDC ──────
       // (on the SOURCE chain, signed by the wallet that lives there)
       setState(s => ({ ...s, step: 'approving' }))
       await executeContractCall({
         chainKey:             from.key,
         contractAddress:      from.usdc,
         abiFunctionSignature: 'approve(address,uint256)',
-        abiParameters:        [vault, amountUnits.toString()],
+        abiParameters:        [messenger, amountUnits.toString()],
       }, note)
-
-      // Wait until the approve is actually mined (allowance visible on-chain)
-      // before the burn. executeContractCall returns on device-approval, not on
-      // confirmation, so without this the vault's transferFrom reverts with
-      // "transfer amount exceeds allowance".
-      setState(s => ({ ...s, step: 'approving', note: 'Confirming approval on-chain...' }))
-      const allowanceReady = await waitForAllowance({
-        fromKey: from.key,
-        usdc:    from.usdc as `0x${string}`,
-        owner:   address as `0x${string}`,
-        spender: vault as `0x${string}`,
-        amount:  amountUnits,
-      })
-      if (!allowanceReady) {
-        throw new Error(
-          'Approval did not confirm on-chain in time. No funds were moved - ' +
-          'please try the bridge again in a moment.')
-      }
 
       // ── 3. BURN on the source chain ──────────────────────
       setState(s => ({ ...s, step: 'burning' }))
@@ -248,21 +181,23 @@ export function useBridge() {
       setState(s => ({ ...s, mode: quote.mode, quote }))
 
       /*
-        bridgeWithFee(amount, destinationDomain, mintRecipient, maxFee,
-                      minFinalityThreshold) on the Nexum vault. The vault pulls
-        the gross `amount`, keeps 0.1%, and calls depositForBurn for the net
-        with burnToken = USDC and destinationCaller = bytes32(0) (permissionless
-        mint) internally. The user still receives the net on the destination.
+        depositForBurn(amount, destinationDomain, mintRecipient, burnToken,
+                       destinationCaller, maxFee, minFinalityThreshold)
+        Circle's abiParameters wants: uint256 as decimal strings, address as
+        hex, bytes32 as hex. destinationCaller = bytes32(0) so ANY address may
+        finish the mint (our reconciler, or the user from another device).
       */
       const burnResult = await executeContractCall({
         chainKey:             from.key,
-        contractAddress:      vault,
+        contractAddress:      messenger,
         abiFunctionSignature:
-          'bridgeWithFee(uint256,uint32,bytes32,uint256,uint32)',
+          'depositForBurn(uint256,uint32,bytes32,address,bytes32,uint256,uint32)',
         abiParameters: [
           amountUnits.toString(),
           to.domain,
           addressToBytes32(recipient),
+          from.usdc,
+          `0x${'0'.repeat(64)}`,
           quote.maxFeeUnits.toString(),
           finalityThreshold,
         ],
@@ -306,7 +241,7 @@ export function useBridge() {
           att = await fetchAttestation(irisBase(), from.domain, burnTx)
           if (att.status === 'complete') break
         } catch {
-          // swallow and retry - the burn is safe either way
+          // swallow and retry — the burn is safe either way
         }
         setState(s => ({ ...s, waitedSec: Math.floor((Date.now() - startedAt) / 1000) }))
         await new Promise(r => setTimeout(r, POLL_MS))
