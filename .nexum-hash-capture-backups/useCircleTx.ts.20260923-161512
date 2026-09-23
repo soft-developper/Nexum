@@ -239,7 +239,6 @@ async function ensureBridgeChains(
 export async function executeContractCall(
   params: ContractCallParams,
   onStep?: (message: string) => void,
-  onHash?: (txHash: string) => void,
 ): Promise<TransferResult> {
   const session = getSigningSession()
   if (!session) throw new NeedsReauthError()
@@ -308,7 +307,7 @@ export async function executeContractCall(
     consecutiveErrors = 0
 
     const tx = await r2.json().catch(() => ({}))
-    if (DONE.includes(tx.state))   { if (tx.txHash && onHash) { try { onHash(tx.txHash) } catch {} } return { txHash: tx.txHash, state: tx.state } }
+    if (DONE.includes(tx.state))   return { txHash: tx.txHash, state: tx.state }
     if (FAILED.includes(tx.state)) {
       // __NEXUM_SURFACE_MINT_ERROR__ include Circle's real reason so callers can
       // recognize e.g. 'Nonce already used' (mint already completed). Fall back to
@@ -321,7 +320,7 @@ export async function executeContractCall(
 
     // Once we have a hash it's on-chain, even if Circle hasn't marked it
     // COMPLETE yet. Return it rather than making the caller wait.
-    if (tx.txHash) { if (onHash) { try { onHash(tx.txHash) } catch {} } return { txHash: tx.txHash, state: tx.state ?? 'SENT' } }
+    if (tx.txHash) return { txHash: tx.txHash, state: tx.state ?? 'SENT' }
   }
 
   // Approved and broadcast, just slow. Not a failure.

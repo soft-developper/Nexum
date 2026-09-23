@@ -204,19 +204,7 @@ export function useBridge() {
           quote.maxFeeUnits.toString(),
           finalityThreshold,
         ],
-      }, note,
-      // onHash: persist the burn tx hash the INSTANT it is discovered, before
-      // executeContractCall even returns. This is the recovery-critical write -
-      // if the browser dies right after the burn, the hash is already saved, so
-      // the transfer can always be completed. Fire-and-forget; the awaited
-      // /burned write below is the authoritative one (idempotent COALESCE).
-      (hash: string) => {
-        burnedYet = true
-        setState(s => ({ ...s, burnTx: hash, inFlight: true }))
-        api(`/bridge/${bridgeId}/burned`, {
-          burnTx: hash, messageBytes: hash, messageHash: hash,
-        }).catch(() => {})
-      })
+      }, note)
 
       const burnTx = burnResult.txHash
       if (!burnTx) {

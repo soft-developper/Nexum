@@ -151,8 +151,6 @@ export async function findBurnTx(rec: BridgeRecord): Promise<string | null> {
 
       if (lo === floor) break
       hi = lo - 1n
-      // Small pause between chunks so we don't trip RPC rate limits. Tunable.
-      await new Promise(r => setTimeout(r, Number(process.env.BURN_SCAN_CHUNK_DELAY_MS ?? '250')))
     }
 
     console.warn(`[BurnScanner] ${rec.id}: no matching burn for depositor ${rec.wallet_address} on ${rec.from_chain} in ${floor}-${head} (${totalLogs} wallet burn logs seen). Wrong source chain, or burn outside lookback.`)
