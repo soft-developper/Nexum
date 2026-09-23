@@ -141,25 +141,6 @@ export async function listUnresolved(limit = 50): Promise<BridgeRecord[]> {
   return rows.map(normalize).filter(Boolean) as BridgeRecord[]
 }
 
-/*
-  Bridges stuck in 'burning' with NO burn_tx: the burn was signed and almost
-  certainly landed on-chain, but the browser never recorded the tx hash (e.g. a
-  refresh right after signing). Without the hash the mint can't be completed.
-  The burn-scanner picks these up, finds the on-chain DepositForBurn, and
-  backfills burn_tx. Only rows older than minAgeSec are returned, so a bridge
-  that is legitimately still mid-sign is not touched prematurely.
-*/
-export async function listStuckBurning(minAgeSec = 120, limit = 50): Promise<BridgeRecord[]> {
-  const cutoff = now() - minAgeSec
-  const rows = parseRows(await db.run(sql`
-    SELECT * FROM bridge_transfers
-    WHERE status = 'burning'
-      AND (burn_tx IS NULL OR burn_tx = '')
-      AND updated_at < ${cutoff}
-    ORDER BY updated_at ASC LIMIT ${limit}`))
-  return rows.map(normalize).filter(Boolean) as BridgeRecord[]
-}
-
 // ── Stage transitions ──────────────────────────────────────
 async function patch(id: string, fields: Record<string, unknown>) {
   const sets: any[] = []
@@ -223,10 +204,10 @@ export async function markFailed(id: string, error: string) {
 
 /*
   The user dismissed the wallet signing prompt before anything was
-  submitted. Nothing moved on-chain, so this is NOT a failure - it's a
+  submitted. Nothing moved on-chain, so this is NOT a failure — it's a
   clean 'cancelled'. Same burn-safety guard as markFailed: if a burn
   somehow already landed, the funds are real and this becomes 'stranded',
-  never 'cancelled'. attempts is NOT incremented - the user didn't try and
+  never 'cancelled'. attempts is NOT incremented — the user didn't try and
   fail, they chose not to proceed.
 */
 export async function markCancelled(id: string) {

@@ -1,0 +1,122 @@
+// ============================================================
+// Bridge burn-scanner.
+//
+// Recovers the burn tx hash for a bridge stuck in 'burning' with no burn_tx.
+// The burn was signed and (almost certainly) landed on-chain, but the browser
+// never recorded the hash (e.g. a refresh right after signing). The chain is
+// the source of truth, so we scan the SOURCE chain's TokenMessenger for the
+// user's DepositForBurn event and match it back to the row.
+//
+// CCTP V2 DepositForBurn (confirmed against Circle docs + the on-chain ABI):
+//   event DepositForBurn(
+//     address indexed burnToken,
+//     uint256 amount,
+//     address indexed depositor,
+//     bytes32 mintRecipient,
+//     uint32  destinationDomain,
+//     bytes32 destinationTokenMessenger,
+//     bytes32 destinationCaller,
+//     uint256 maxFee,
+//     uint32  indexed minFinalityThreshold,
+//     bytes   hookData
+//   )
+// We filter by depositor (indexed = the user's wallet) and match on amount +
+// destinationDomain + mintRecipient. A match is only accepted when it is
+// UNAMBIGUOUS - if two candidate burns match and we can't tell them apart, we
+// skip rather than risk attaching the wrong hash (a wrong hash would fetch the
+// wrong attestation).
+// ============================================================
+
+import { createPublicClient, http, parseAbiItem, getAddress, pad } from 'viem'
+import type { BridgeRecord } from './repository'
+
+// All Circle CCTP TESTNET chains share one TokenMessengerV2 address.
+const TESTNET_TOKEN_MESSENGER = (process.env.CCTP_TOKEN_MESSENGER
+  ?? '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA') as `0x${string}`
+
+// Source-chain RPCs, keyed by our internal from_chain key. Same defaults the
+// send reconciler uses; override any via env.
+const RPC_BY_CHAIN: Record<string, string> = {
+  arc:       process.env.ARC_RPC_URL      ?? 'https://rpc.testnet.arc.network',
+  base:      process.env.BASE_RPC_URL     ?? 'https://sepolia.base.org',
+  ethereum:  process.env.ETH_RPC_URL      ?? 'https://ethereum-sepolia-rpc.publicnode.com',
+  arbitrum:  process.env.ARB_RPC_URL      ?? 'https://sepolia-rollup.arbitrum.io/rpc',
+  polygon:   process.env.POLYGON_RPC_URL  ?? 'https://polygon-amoy-bor-rpc.publicnode.com',
+  optimism:  process.env.OP_RPC_URL       ?? 'https://sepolia.optimism.io',
+  avalanche: process.env.AVAX_RPC_URL     ?? 'https://api.avax-test.network/ext/bc/C/rpc',
+  unichain:  process.env.UNICHAIN_RPC_URL ?? 'https://sepolia.unichain.org',
+  monad:     process.env.MONAD_RPC_URL    ?? 'https://testnet-rpc.monad.xyz',
+}
+
+const DEPOSIT_FOR_BURN_EVENT = parseAbiItem(
+  'event DepositForBurn(address indexed burnToken, uint256 amount, address indexed depositor, bytes32 mintRecipient, uint32 destinationDomain, bytes32 destinationTokenMessenger, bytes32 destinationCaller, uint256 maxFee, uint32 indexed minFinalityThreshold, bytes hookData)'
+)
+
+// How many blocks back to scan from head. A bridge stuck for a while still
+// burned recently in chain terms; 50k testnet blocks is a generous window that
+// stays within most public-RPC getLogs range limits.
+const LOOKBACK_BLOCKS = BigInt(process.env.BURN_SCAN_LOOKBACK ?? '50000')
+
+function clientFor(chainKey: string) {
+  const rpc = RPC_BY_CHAIN[chainKey]
+  if (!rpc) return null
+  return createPublicClient({ transport: http(rpc) })
+}
+
+function toBytes32(addr: string): string {
+  // address -> left-padded 32-byte hex, lowercased for comparison
+  return pad(getAddress(addr), { size: 32 }).toLowerCase()
+}
+
+/**
+ * Find the burn tx hash for a stuck 'burning' record by scanning its source
+ * chain. Returns the hash on an unambiguous match, or null if none / ambiguous
+ * / chain unreachable. Never throws - callers treat null as "try again later".
+ */
+export async function findBurnTx(rec: BridgeRecord): Promise<string | null> {
+  try {
+    const client = clientFor(rec.from_chain)
+    if (!client) return null
+
+    const head = await client.getBlockNumber()
+    const fromBlock = head > LOOKBACK_BLOCKS ? head - LOOKBACK_BLOCKS : 0n
+
+    // depositor is indexed, so the node filters server-side to this wallet only.
+    const logs = await client.getLogs({
+      address: TESTNET_TOKEN_MESSENGER,
+      event:   DEPOSIT_FOR_BURN_EVENT,
+      args:    { depositor: getAddress(rec.wallet_address) },
+      fromBlock,
+      toBlock: head,
+    })
+    if (!logs.length) return null
+
+    const wantAmount    = BigInt(Math.round(rec.amount))          // stored in base units
+    const wantDomain    = Number(rec.to_domain)
+    const wantRecipient = toBytes32(rec.recipient)
+
+    const matches = logs.filter((l: any) => {
+      const a = l.args
+      if (a?.amount == null || a?.destinationDomain == null || a?.mintRecipient == null) return false
+      const amountOk    = BigInt(a.amount) === wantAmount
+      const domainOk    = Number(a.destinationDomain) === wantDomain
+      const recipientOk = String(a.mintRecipient).toLowerCase() === wantRecipient
+      return amountOk && domainOk && recipientOk
+    })
+
+    if (matches.length === 0) return null
+    if (matches.length > 1) {
+      // Two identical burns (same wallet, amount, dest, recipient) in the
+      // window - can't safely tell which belongs to this row. Skip; a human /
+      // manual recovery can resolve it rather than us guessing wrong.
+      console.warn(`[BurnScanner] ${rec.id}: ${matches.length} ambiguous matches, skipping`)
+      return null
+    }
+
+    const hash = matches[0].transactionHash as string
+    return hash ?? null
+  } catch (e: any) {
+    console.error(`[BurnScanner] ${rec.id} scan failed (non-fatal):`, e?.message ?? e)
+    return null
+  }
+}

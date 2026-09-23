@@ -12,8 +12,7 @@
 // angry user.
 // ============================================================
 
-import { listUnresolved, listStuckBurning, markBurned, nextAction, isInFlight } from './repository'
-import { findBurnTx } from './burnScanner'
+import { listUnresolved, nextAction, isInFlight } from './repository'
 
 const INTERVAL_MS = Number(process.env.BRIDGE_RECONCILE_MS ?? 120_000) // 2 min
 
@@ -44,30 +43,6 @@ export async function reconcileOnce(): Promise<{
     console.log(`[Bridge] reconcile: ${pending.length} unresolved, ` +
                 `${inFlight} in flight, ${needsMint} ready to mint`)
   }
-
-  // Burn-scanner: recover rows stuck in 'burning' with no burn_tx by finding
-  // the on-chain DepositForBurn and backfilling the hash. Once backfilled the
-  // row moves to 'attesting' and the normal mint path (browser or this
-  // reconciler) completes it. This is what makes a mid-burn refresh survivable.
-  let recovered = 0
-  const stuck = await listStuckBurning()
-  for (const rec of stuck) {
-    const burnTx = await findBurnTx(rec)
-    if (!burnTx) continue
-    try {
-      // Store the tx hash in all three fields, exactly as the browser path does
-      // (Circle's attestation is looked up by tx hash, not a computed message).
-      await markBurned(rec.id, { burnTx, messageBytes: burnTx, messageHash: burnTx })
-      recovered++
-      console.log(`[BurnScanner] recovered ${rec.id}: burn_tx backfilled ${burnTx.slice(0, 14)}...`)
-    } catch (e: any) {
-      console.error(`[BurnScanner] ${rec.id} backfill failed (non-fatal):`, e?.message ?? e)
-    }
-  }
-  if (stuck.length) {
-    console.log(`[BurnScanner] ${stuck.length} stuck burning checked, ${recovered} recovered`)
-  }
-
   return { checked: pending.length, inFlight, needsMint }
 }
 
