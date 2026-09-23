@@ -61,7 +61,7 @@ function Hero() {
       <div className="mx-auto max-w-6xl px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
         <span className="inline-flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 py-1.5 text-xs font-medium text-app-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-app-accent" />
-          Live on Arc testnet
+          Live on Arc
         </span>
 
         <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
@@ -140,3 +140,5 @@ function LandingFooter() {
     </footer>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

@@ -32,6 +32,15 @@ const ARC_IS_MAINNET = (process.env.NEXT_PUBLIC_CCTP_ENV ?? 'testnet') === 'main
 export const ARC_CHAIN_ID  = Number(process.env.NEXT_PUBLIC_ARC_CHAIN_ID ?? (ARC_IS_MAINNET ? 5042 : 5042002))
 export const ARC_RPC_URL   = process.env.NEXT_PUBLIC_ARC_RPC_URL ?? (ARC_IS_MAINNET ? 'https://rpc.mainnet.arc.io' : 'https://rpc.testnet.arc.network')
 export const ARC_DOMAIN    = 26
+// Env-aware Arc explorer. Mainnet -> explorer.arc.io, testnet -> arcscan.
+const ARC_EXPLORER_IS_MAINNET = (process.env.NEXT_PUBLIC_CCTP_ENV ?? 'testnet') === 'mainnet'
+export const ARC_EXPLORER = ARC_EXPLORER_IS_MAINNET
+  ? 'https://explorer.arc.io'
+  : 'https://testnet.arcscan.app'
+export const arcTxUrl   = (hash: string) => `${ARC_EXPLORER}/tx/${hash}`
+export const arcAddrUrl = (addr: string) => `${ARC_EXPLORER}/address/${addr}`
 export const USDC_DECIMALS = 6
 export const SPREAD_BPS    = 50
 // __NEXUM_MAINNET_M3__ 20260923-214519
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

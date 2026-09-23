@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useEffect, useState } from 'react'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import Link from 'next/link'
@@ -156,7 +157,7 @@ export default function MyTradesPage() {
                       {new Date(offer.created_at * 1000).toLocaleDateString()}
                     </span>
                     {offer.release_tx_hash && (
-                      <a href={`https://testnet.arcscan.app/tx/${offer.release_tx_hash}`}
+                      <a href={`${ARC_EXPLORER}/tx/${offer.release_tx_hash}`}
                         target="_blank" rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:underline">
                         Release tx <ExternalLink className="h-3 w-3" />
@@ -180,3 +181,5 @@ export default function MyTradesPage() {
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

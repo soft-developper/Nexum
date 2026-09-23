@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { EmailPreferences } from '@/components/notifications/EmailPreferences'
 import { SessionsCard } from '@/components/profile/SessionsCard'
 import { useState } from 'react'
@@ -287,7 +288,7 @@ function ProfileContent() {
               }
             </button>
             {address && (
-              <a href={`https://testnet.arcscan.app/address/${address}`}
+              <a href={`${ARC_EXPLORER}/address/${address}`}
                 target="_blank" rel="noopener noreferrer"
                 className="shrink-0 text-app-muted hover:text-app-accent-text">
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -470,3 +471,5 @@ function ProfileContent() {
   )
 }
 // __NEXUM_DASH_CLEANUP_A__ 20260910-130315
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

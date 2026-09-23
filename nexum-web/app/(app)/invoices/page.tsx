@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { SectionGuard } from '@/components/layout/SectionGuard'
 import { useState } from 'react'
 import Link from 'next/link'
@@ -213,7 +214,7 @@ function InvoicesContent() {
                       </Link>
                     )}
                     {inv.payment_tx_hash && (
-                      <a href={`https://testnet.arcscan.app/tx/${inv.payment_tx_hash}`}
+                      <a href={`${ARC_EXPLORER}/tx/${inv.payment_tx_hash}`}
                         target="_blank" rel="noopener noreferrer"
                         className="text-app-muted hover:text-app-accent-text">
                         <ExternalLink className="h-4 w-4" />
@@ -237,3 +238,5 @@ export default function InvoicesPage() {
     </SectionGuard>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

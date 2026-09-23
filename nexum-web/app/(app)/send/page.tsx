@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { SectionGuard } from '@/components/layout/SectionGuard'
 import { useState, useMemo } from 'react'
 import { useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
@@ -292,7 +293,7 @@ function SendPageInner() {
 
         {/* Success — shows on every chain (sent), with the Arc receipt as a bonus confirm */}
         {(isSuccess || sent) && txHash && (
-          <a href={`${selectedChain?.explorer ?? 'https://testnet.arcscan.app'}/tx/${txHash}`}
+          <a href={`${selectedChain?.explorer ?? ARC_EXPLORER}/tx/${txHash}`}
             target="_blank" rel="noopener noreferrer"
             className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-900/20 px-3 py-2 text-xs text-emerald-400 hover:underline">
             <CheckCircle className="h-3.5 w-3.5" /> Sent · View on {selectedChain?.name ?? 'explorer'}
@@ -311,3 +312,5 @@ export default function SendPage() {
   )
 }
 // __NEXUM_DASH_CLEANUP_A__ 20260910-130315
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

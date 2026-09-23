@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
@@ -407,7 +408,7 @@ export default function OfferDetailPage() {
           {offer.arc_tx_hash && (
             <div className="mt-2 flex justify-between text-xs">
               <span className="text-app-muted">Create tx</span>
-              <a href={`https://testnet.arcscan.app/tx/${offer.arc_tx_hash}`}
+              <a href={`${ARC_EXPLORER}/tx/${offer.arc_tx_hash}`}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1 font-mono text-app-accent-text hover:underline">
                 {offer.arc_tx_hash.slice(0,14)}… <ExternalLink className="h-3 w-3" />
@@ -417,7 +418,7 @@ export default function OfferDetailPage() {
           {offer.release_tx_hash && (
             <div className="mt-2 flex justify-between text-xs">
               <span className="text-app-muted">Release tx</span>
-              <a href={`https://testnet.arcscan.app/tx/${offer.release_tx_hash}`}
+              <a href={`${ARC_EXPLORER}/tx/${offer.release_tx_hash}`}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1 font-mono text-emerald-400 hover:underline">
                 {offer.release_tx_hash.slice(0,14)}… <ExternalLink className="h-3 w-3" />
@@ -679,7 +680,7 @@ export default function OfferDetailPage() {
             <p className="mt-2 text-xs text-app-muted">{note}</p>
           )}
           {!!txHash && (
-            <a href={`https://testnet.arcscan.app/tx/${txHash}`}
+            <a href={`${ARC_EXPLORER}/tx/${txHash}`}
               target="_blank" rel="noopener noreferrer"
               className="mt-3 flex items-center gap-1.5 text-xs text-app-accent-text hover:underline">
               <ExternalLink className="h-3 w-3" /> View on ArcScan
@@ -702,3 +703,5 @@ export default function OfferDetailPage() {
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

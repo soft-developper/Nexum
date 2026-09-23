@@ -11,6 +11,7 @@
 // the client's job is just to start it and reflect progress.
 // ============================================================
 
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -189,7 +190,7 @@ export function PayrollExecuteContent() {
               {r.tx_hash && r.tx_hash.startsWith('ERR: ')
                 ? <span className="max-w-[180px] truncate text-[11px] text-red-400" title={r.tx_hash.slice(5)}>{r.tx_hash.slice(5)}</span>
                 : r.tx_hash
-                ? <a href={`https://testnet.arcscan.app/tx/${r.tx_hash}`}
+                ? <a href={`${ARC_EXPLORER}/tx/${r.tx_hash}`}
                      target="_blank" rel="noopener noreferrer"
                      className="text-app-muted hover:text-app-text">
                     <ExternalLink className="h-4 w-4" />
@@ -205,3 +206,5 @@ export function PayrollExecuteContent() {
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

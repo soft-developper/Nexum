@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
 import { arcTestnet } from '@/lib/arc-chain'
 
@@ -18,7 +19,9 @@ export function useArcTransaction(hash?: `0x${string}`) {
     isSuccess,
     isError,
     explorerUrl: hash
-      ? `https://testnet.arcscan.app/tx/${hash}`
+      ? `${ARC_EXPLORER}/tx/${hash}`
       : null,
   }
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

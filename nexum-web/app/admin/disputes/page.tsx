@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useEffect, useState } from 'react'
 import { AdminShell }    from '@/components/admin/AdminShell'
 import { usePaged } from '@/hooks/usePaged'
@@ -281,7 +282,7 @@ export default function AdminDisputesPage() {
                       </>
                     )}
 
-                    <a href={`https://testnet.arcscan.app`} target="_blank" rel="noopener noreferrer"
+                    <a href={`${ARC_EXPLORER}`} target="_blank" rel="noopener noreferrer"
                       className="ml-auto text-app-muted hover:text-app-accent-text">
                       <ExternalLink className="h-4 w-4" />
                     </a>
@@ -350,3 +351,5 @@ export default function AdminDisputesPage() {
     </AdminShell>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

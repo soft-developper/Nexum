@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useWallet }   from '@/hooks/useWallet'
 import { useAccount }  from 'wagmi'
 import { useProfile }  from '@/hooks/useProfile'
@@ -129,7 +130,7 @@ export function WalletContent() {
               }
             </button>
             {address && (
-              <a href={`https://testnet.arcscan.app/address/${address}`}
+              <a href={`${ARC_EXPLORER}/address/${address}`}
                 target="_blank" rel="noopener noreferrer"
                 className="shrink-0 text-app-muted hover:text-app-accent-text">
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -353,7 +354,7 @@ export function WalletContent() {
                     </Badge>
                   </div>
                   {tx.arcTxHash && (
-                    <a href={`${chainByKey((tx as any).fromChain ?? 'arc')?.explorer ?? 'https://testnet.arcscan.app'}/tx/${tx.arcTxHash}`}
+                    <a href={`${chainByKey((tx as any).fromChain ?? 'arc')?.explorer ?? ARC_EXPLORER}/tx/${tx.arcTxHash}`}
                       target="_blank" rel="noopener noreferrer" className="shrink-0">
                       <ExternalLink className="h-3 w-3 text-app-muted hover:text-app-accent-text" />
                     </a>
@@ -373,3 +374,5 @@ export function WalletContent() {
 }
 // __NEXUM_DASH_CLEANUP_A__ 20260910-130315
 // __NEXUM_DASH_CLEANUP_B__ 20260910-132813
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

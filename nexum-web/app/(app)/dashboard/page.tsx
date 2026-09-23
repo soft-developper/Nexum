@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useAccount }        from 'wagmi'
 import Link                  from 'next/link'
 import { useUSDCBalance }    from '@/hooks/useUSDCBalance'
@@ -84,7 +85,7 @@ function DashboardContent() {
     {
       label: 'USDC · Arc',
       value: `${balance}`,
-      sub:   'on Arc Testnet',
+      sub:   (process.env.NEXT_PUBLIC_CCTP_ENV ?? 'testnet') === 'mainnet' ? 'on Arc' : 'on Arc Testnet',
       icon:  Wallet,
       color: 'text-app-accent-text',
       highlight: false,
@@ -324,7 +325,7 @@ function DashboardContent() {
                     </Badge>
                   </div>
                   {tx.arcTxHash && (
-                    <a href={`${chainByKey(tx.fromChain ?? 'arc')?.explorer ?? 'https://testnet.arcscan.app'}/tx/${tx.arcTxHash}`}
+                    <a href={`${chainByKey(tx.fromChain ?? 'arc')?.explorer ?? ARC_EXPLORER}/tx/${tx.arcTxHash}`}
                       target="_blank" rel="noopener noreferrer" className="shrink-0">
                       <ExternalLink className="h-3 w-3 text-app-muted hover:text-app-accent-text" />
                     </a>
@@ -370,3 +371,5 @@ function DashboardSkeleton() {
   )
 }
 // __NEXUM_DASH_CLEANUP_B__ 20260910-132813
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

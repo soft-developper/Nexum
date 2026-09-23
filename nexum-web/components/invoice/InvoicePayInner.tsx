@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConnectButton } from '@/components/wallet/ConnectButton'
 import { formatAmount } from '@/lib/utils'
-import { CONTRACTS, USDC_DECIMALS } from '@/lib/contracts'
+import { CONTRACTS, USDC_DECIMALS, ARC_EXPLORER } from '@/lib/contracts'
 import { USDC_ABI } from '@/lib/usdc'
 import { VAULT_P2P_ABI } from '@/lib/vault-abi'
 import { platformFee, PLATFORM_FEE_LABEL } from '@/lib/fees'
@@ -409,7 +409,7 @@ function PayContent() {
               {formatAmount(usdcAmount, 6)} USDC sent · Invoice marked as paid
             </p>
             {txHash && (
-              <a href={`https://testnet.arcscan.app/tx/${txHash}`}
+              <a href={`${ARC_EXPLORER}/tx/${txHash}`}
                 target="_blank" rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-1 text-xs text-app-accent-text hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> View on ArcScan
@@ -425,7 +425,7 @@ function PayContent() {
               The transaction failed on Arc. Your USDC was not deducted.
             </p>
             {txHash && (
-              <a href={`https://testnet.arcscan.app/tx/${txHash}`}
+              <a href={`${ARC_EXPLORER}/tx/${txHash}`}
                 target="_blank" rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-1 text-xs text-red-400 hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> View failed tx
@@ -475,7 +475,7 @@ function PayContent() {
               </div>
             </div>
             {txHash && (
-              <a href={`https://testnet.arcscan.app/tx/${txHash}`}
+              <a href={`${ARC_EXPLORER}/tx/${txHash}`}
                 target="_blank" rel="noopener noreferrer"
                 className="mt-2 flex items-center gap-1 text-xs text-app-accent-text hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> Track on ArcScan
@@ -601,3 +601,5 @@ function PayContent() {
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

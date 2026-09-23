@@ -11,7 +11,7 @@ import { LOCAL_CURRENCIES, countryForCurrency } from '@/lib/corridor'
 import { CashOutCard } from './CashOutCard'  // single source of truth
 import { useArcTransaction } from '@/hooks/useArcTransaction'
 import { useUSDCBalance } from '@/hooks/useUSDCBalance'
-import { SPREAD_BPS } from '@/lib/contracts'
+import { SPREAD_BPS, ARC_EXPLORER } from '@/lib/contracts'
 import type { Currency } from '@/types'
 
 const GAS_BUFFER = 0.001 // ~network fee per tx, kept aside so Max never over-spends
@@ -248,7 +248,7 @@ export function SwapCard() {
       {/* Success state shows last tx, clears when user types again */}
       {lastTx && (
         <a
-          href={`https://testnet.arcscan.app/tx/${lastTx.hash}`}
+          href={`${ARC_EXPLORER}/tx/${lastTx.hash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-900/50 bg-emerald-900/20 px-3 py-2.5 text-xs text-emerald-400 hover:underline"
@@ -268,3 +268,5 @@ export function SwapCard() {
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

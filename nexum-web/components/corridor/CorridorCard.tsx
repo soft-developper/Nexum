@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useState, useEffect } from 'react'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import {
@@ -316,14 +317,14 @@ export function CorridorCard() {
               </div>
               <div className="mt-1 space-y-0.5">
                 {step1Hash && (
-                  <a href={`https://testnet.arcscan.app/tx/${step1Hash}`} target="_blank"
+                  <a href={`${ARC_EXPLORER}/tx/${step1Hash}`} target="_blank"
                     rel="noopener noreferrer"
                     className="block font-mono text-[10px] text-emerald-700 hover:underline">
                     Step 1 · {step1Hash.slice(0, 18)}… ↗
                   </a>
                 )}
                 {step2Hash && (
-                  <a href={`https://testnet.arcscan.app/tx/${step2Hash}`} target="_blank"
+                  <a href={`${ARC_EXPLORER}/tx/${step2Hash}`} target="_blank"
                     rel="noopener noreferrer"
                     className="block font-mono text-[10px] text-emerald-700 hover:underline">
                     Step 2 · {step2Hash.slice(0, 18)}… ↗
@@ -343,3 +344,5 @@ export function CorridorCard() {
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useEffect, useState } from 'react'
 import { useAccountAddress as useAccount } from '@/hooks/useAccountAddress'
 import { Badge } from '@/components/ui/badge'
@@ -159,7 +160,7 @@ function TxRow({ tx, isCorridorStep = false }: { tx: any; isCorridorStep?: boole
   // Explorer for a send: the chain the send happened on (from_chain), falling
   // back to Arc for legacy rows that predate multichain send.
   const sendChainKey = tx.from_chain ?? tx.fromChain ?? 'arc'
-  const sendExplorer = chainByKey(sendChainKey)?.explorer ?? 'https://testnet.arcscan.app'
+  const sendExplorer = chainByKey(sendChainKey)?.explorer ?? ARC_EXPLORER
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3.5
@@ -209,3 +210,5 @@ function TxRow({ tx, isCorridorStep = false }: { tx: any; isCorridorStep?: boole
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

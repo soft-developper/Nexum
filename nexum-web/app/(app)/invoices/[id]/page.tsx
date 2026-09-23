@@ -1,4 +1,5 @@
 'use client'
+import { ARC_EXPLORER } from '@/lib/contracts'
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -106,7 +107,7 @@ function InvoiceDetail() {
                 Paid {invoice.paid_at ? new Date(invoice.paid_at * 1000).toLocaleString() : ''}
               </p>
               {invoice.payment_tx_hash && (
-                <a href={`https://testnet.arcscan.app/tx/${invoice.payment_tx_hash}`}
+                <a href={`${ARC_EXPLORER}/tx/${invoice.payment_tx_hash}`}
                   target="_blank" rel="noopener noreferrer"
                   className="mt-3 inline-flex items-center gap-1.5 text-xs text-app-accent-text hover:underline">
                   <ExternalLink className="h-3.5 w-3.5" /> View on ArcScan
@@ -151,3 +152,5 @@ function InvoiceDetail() {
     </div>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419

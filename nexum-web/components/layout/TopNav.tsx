@@ -13,7 +13,7 @@ export function TopNav() {
       <div className="flex items-center gap-2.5">
         <AfriFXLogo size="sm" href="/dashboard" />
         <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-app-accent/10 px-2 py-0.5 text-[10px] font-medium text-app-accent-text">
-          <Zap className="h-2.5 w-2.5" /> Arc Testnet
+          <Zap className="h-2.5 w-2.5" /> {(process.env.NEXT_PUBLIC_CCTP_ENV ?? 'testnet') === 'mainnet' ? 'Arc' : 'Arc Testnet'}
         </span>
       </div>
 
@@ -29,3 +29,5 @@ export function TopNav() {
     </header>
   )
 }
+
+// __NEXUM_MAINNET_M5__ 20260924-002419
