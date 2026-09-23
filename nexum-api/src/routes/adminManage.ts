@@ -1264,7 +1264,8 @@ function usdcToBase(amount: number): bigint {
 const FEE_PROTOCOLS: { key: string; protocol: FeeProtocol; label: string }[] = [
   { key: 'p2p',     protocol: FeeProtocol.P2P,     label: 'Marketplace (P2P)' },
   { key: 'invoice', protocol: FeeProtocol.Invoice, label: 'Invoices' },
-  { key: 'bridge',  protocol: FeeProtocol.Bridge,  label: 'Bridge' },
+  // Bridge fee removed: never collectable on Arc's single-chain model, and the
+  // deployed vault has no Bridge protocol, so feesAccrued(2) reverted the page.
 ]
 
 // GET /admin/manage/fees - per-protocol accrued / withdrawn / available + total
@@ -1335,3 +1336,4 @@ router.post('/fees/withdraw', requireSuperAdmin, async (req: any, res) => {
 })
 
 export default router
+// __NEXUM_FEES_NO_BRIDGE__ 20260923-165229
