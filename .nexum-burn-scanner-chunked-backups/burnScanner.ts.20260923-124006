@@ -52,16 +52,10 @@ const DEPOSIT_FOR_BURN_EVENT = parseAbiItem(
   'event DepositForBurn(address indexed burnToken, uint256 amount, address indexed depositor, bytes32 mintRecipient, uint32 destinationDomain, bytes32 destinationTokenMessenger, bytes32 destinationCaller, uint256 maxFee, uint32 indexed minFinalityThreshold, bytes hookData)'
 )
 
-// How many blocks back to scan from head. A stuck bridge burned very recently
-// in chain terms, so a few thousand blocks is plenty; kept modest because the
-// scan is chunked (many getLogs calls) and runs per stuck row each cycle.
-// Tune up via env only if a burn is older than this window.
-const LOOKBACK_BLOCKS = BigInt(process.env.BURN_SCAN_LOOKBACK ?? '9000')
-
-// Public RPCs cap eth_getLogs ranges hard (Base Sepolia = 1000, others vary).
-// Scan in small chunks under that cap, paging backward from head, stopping as
-// soon as the burn is found. 900 stays safely under the common 1000 limit.
-const CHUNK_BLOCKS = BigInt(process.env.BURN_SCAN_CHUNK ?? '900')
+// How many blocks back to scan from head. A bridge stuck for a while still
+// burned recently in chain terms; 50k testnet blocks is a generous window that
+// stays within most public-RPC getLogs range limits.
+const LOOKBACK_BLOCKS = BigInt(process.env.BURN_SCAN_LOOKBACK ?? '50000')
 
 function clientFor(chainKey: string) {
   const rpc = RPC_BY_CHAIN[chainKey]
@@ -94,67 +88,50 @@ export async function findBurnTx(rec: BridgeRecord): Promise<string | null> {
     if (!client) return null
 
     const head = await client.getBlockNumber()
-    const floor = head > LOOKBACK_BLOCKS ? head - LOOKBACK_BLOCKS : 0n
+    const fromBlock = head > LOOKBACK_BLOCKS ? head - LOOKBACK_BLOCKS : 0n
+
+    // depositor is indexed, so the node filters server-side to this wallet only.
+    const logs = await client.getLogs({
+      address: TESTNET_TOKEN_MESSENGER,
+      event:   DEPOSIT_FOR_BURN_EVENT,
+      args:    { depositor: getAddress(rec.wallet_address) },
+      fromBlock,
+      toBlock: head,
+    })
+    if (!logs.length) {
+      console.warn(`[BurnScanner] ${rec.id}: no DepositForBurn logs for depositor ${rec.wallet_address} on ${rec.from_chain} (scanned ${fromBlock}-${head}). Wallet mismatch, wrong source chain, or burn outside lookback.`)
+      return null
+    }
 
     const wantAmount    = toBaseUnits(rec.amount)                 // human -> base units
     const wantDomain    = Number(rec.to_domain)
     const wantRecipient = toBytes32(rec.recipient)
-    const depositor     = getAddress(rec.wallet_address)
 
-    // Public RPCs cap eth_getLogs ranges, so scan in chunks paging BACKWARD from
-    // head (most recent first - the burn we want is recent). Stop at the first
-    // unambiguous match. All matches for this wallet+params are collected within
-    // a chunk to detect ambiguity locally.
-    let totalLogs = 0
-    let hi = head
-    while (hi >= floor) {
-      const lo = hi - CHUNK_BLOCKS + 1n > floor ? hi - CHUNK_BLOCKS + 1n : floor
-      let logs: any[] = []
-      try {
-        logs = await client.getLogs({
-          address: TESTNET_TOKEN_MESSENGER,
-          event:   DEPOSIT_FOR_BURN_EVENT,
-          args:    { depositor },
-          fromBlock: lo,
-          toBlock:   hi,
-        }) as any[]
-      } catch (e: any) {
-        // One bad chunk (transient RPC / still-too-large) shouldn't abort the
-        // whole scan; skip it and keep paging. Next cycle retries anyway.
-        console.warn(`[BurnScanner] ${rec.id}: chunk ${lo}-${hi} failed: ${e?.shortMessage ?? e?.message ?? e}`)
-        if (lo === floor) break
-        hi = lo - 1n
-        continue
+    console.log(`[BurnScanner] ${rec.id}: ${logs.length} burn log(s) for wallet; want amount=${wantAmount} domain=${wantDomain} recipient=${wantRecipient}`)
+
+    const matches = logs.filter((l: any) => {
+      const a = l.args
+      if (a?.amount == null || a?.destinationDomain == null || a?.mintRecipient == null) return false
+      const amountOk    = BigInt(a.amount) === wantAmount
+      const domainOk    = Number(a.destinationDomain) === wantDomain
+      const recipientOk = String(a.mintRecipient).toLowerCase() === wantRecipient
+      if (!(amountOk && domainOk && recipientOk)) {
+        console.log(`[BurnScanner] ${rec.id}: candidate ${l.transactionHash?.slice(0,12)} amount=${a.amount}(${amountOk?'ok':'X'}) domain=${a.destinationDomain}(${domainOk?'ok':'X'}) recipient=${String(a.mintRecipient).toLowerCase()}(${recipientOk?'ok':'X'})`)
       }
+      return amountOk && domainOk && recipientOk
+    })
 
-      totalLogs += logs.length
-      const matches = logs.filter((l: any) => {
-        const a = l.args
-        if (a?.amount == null || a?.destinationDomain == null || a?.mintRecipient == null) return false
-        const amountOk    = BigInt(a.amount) === wantAmount
-        const domainOk    = Number(a.destinationDomain) === wantDomain
-        const recipientOk = String(a.mintRecipient).toLowerCase() === wantRecipient
-        if (logs.length && !(amountOk && domainOk && recipientOk)) {
-          console.log(`[BurnScanner] ${rec.id}: candidate ${l.transactionHash?.slice(0,12)} amount=${a.amount}(${amountOk?'ok':'X'}) domain=${a.destinationDomain}(${domainOk?'ok':'X'}) recipient=${String(a.mintRecipient).toLowerCase()}(${recipientOk?'ok':'X'})`)
-        }
-        return amountOk && domainOk && recipientOk
-      })
-
-      if (matches.length === 1) {
-        const hash = matches[0].transactionHash as string
-        if (hash) { console.log(`[BurnScanner] ${rec.id}: matched burn ${hash.slice(0,14)} in blocks ${lo}-${hi}`); return hash }
-      }
-      if (matches.length > 1) {
-        console.warn(`[BurnScanner] ${rec.id}: ${matches.length} ambiguous matches in ${lo}-${hi}, skipping`)
-        return null
-      }
-
-      if (lo === floor) break
-      hi = lo - 1n
+    if (matches.length === 0) return null
+    if (matches.length > 1) {
+      // Two identical burns (same wallet, amount, dest, recipient) in the
+      // window - can't safely tell which belongs to this row. Skip; a human /
+      // manual recovery can resolve it rather than us guessing wrong.
+      console.warn(`[BurnScanner] ${rec.id}: ${matches.length} ambiguous matches, skipping`)
+      return null
     }
 
-    console.warn(`[BurnScanner] ${rec.id}: no matching burn for depositor ${rec.wallet_address} on ${rec.from_chain} in ${floor}-${head} (${totalLogs} wallet burn logs seen). Wrong source chain, or burn outside lookback.`)
-    return null
+    const hash = matches[0].transactionHash as string
+    return hash ?? null
   } catch (e: any) {
     console.error(`[BurnScanner] ${rec.id} scan failed (non-fatal):`, e?.message ?? e)
     return null
