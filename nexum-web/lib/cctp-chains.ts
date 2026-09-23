@@ -147,10 +147,10 @@ const TESTNET_CHAINS: CctpChain[] = [
 
 const MAINNET_CHAINS: CctpChain[] = [
   {
-    key: 'arc', name: 'Arc', domain: 26, chainId: 0,   // set when Arc mainnet lands
-    usdc: process.env.NEXT_PUBLIC_ARC_USDC ?? '',
-    rpcUrl:  process.env.NEXT_PUBLIC_ARC_RPC_URL ?? '',
-    explorer: 'https://arcscan.app',
+    key: 'arc', name: 'Arc', domain: 26, chainId: 5042,
+    usdc: process.env.NEXT_PUBLIC_ARC_USDC ?? '0x3600000000000000000000000000000000000000',
+    rpcUrl:  process.env.NEXT_PUBLIC_ARC_RPC_URL ?? 'https://rpc.mainnet.arc.io',
+    explorer: 'https://explorer.arc.io',
     isHome: true,
   },
   {
@@ -246,3 +246,4 @@ export function bytes32ToAddress(b32: string): `0x${string}` {
   const clean = b32.replace(/^0x/, '')
   return `0x${clean.slice(24)}` as `0x${string}`
 }
+// __NEXUM_MAINNET_M3__ 20260923-214519

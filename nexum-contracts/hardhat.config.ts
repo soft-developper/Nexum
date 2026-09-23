@@ -20,6 +20,12 @@ const config: HardhatUserConfig = {
       // Arc uses USDC as gas token ensure deployer wallet has testnet USDC
       // Faucet: https://faucet.circle.com
     },
+    arc_mainnet: {
+      url:      process.env.ARC_MAINNET_RPC_URL ?? 'https://rpc.mainnet.arc.io',
+      chainId:  5042,
+      accounts: [PRIVATE_KEY],
+      // Arc mainnet uses USDC as gas token - deployer wallet needs mainnet USDC.
+    },
     hardhat: {
       chainId: 31337,
     },
@@ -27,6 +33,7 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       arc_testnet: process.env.ARCSCAN_API_KEY ?? 'placeholder',
+      arc_mainnet: process.env.ARCSCAN_API_KEY ?? 'placeholder',
     },
     customChains: [
       {
@@ -37,8 +44,17 @@ const config: HardhatUserConfig = {
           browserURL: 'https://testnet.arcscan.app',
         },
       },
+      {
+        network: 'arc_mainnet',
+        chainId: 5042,
+        urls: {
+          apiURL:     'https://explorer.arc.io/api',
+          browserURL: 'https://explorer.arc.io',
+        },
+      },
     ],
   },
 }
 
 export default config
+// __NEXUM_MAINNET_M1__ 20260923-214042

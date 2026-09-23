@@ -14,12 +14,13 @@ import { db } from '../db/client'
 import { sql } from 'drizzle-orm'
 import { createPublicClient, http } from 'viem'
 
-const ARC_RPC = process.env.ARC_RPC_URL ?? 'https://rpc.testnet.arc.network'
+const ARC_RPC = process.env.ARC_RPC_URL ?? ((process.env.CCTP_ENV ?? 'testnet') === 'mainnet' ? 'https://rpc.mainnet.arc.io' : 'https://rpc.testnet.arc.network')
 
 const arcClient = createPublicClient({
   transport: http(ARC_RPC),
   chain: {
-    id: 5042002, name: 'Arc Testnet',
+    id: Number(process.env.ARC_CHAIN_ID ?? ((process.env.CCTP_ENV ?? 'testnet') === 'mainnet' ? 5042 : 5042002)),
+    name: (process.env.CCTP_ENV ?? 'testnet') === 'mainnet' ? 'Arc' : 'Arc Testnet',
     nativeCurrency: { name: 'ARC', symbol: 'ARC', decimals: 18 },
     rpcUrls: { default: { http: [ARC_RPC] } },
   } as any,
@@ -85,3 +86,4 @@ async function settle() {
     console.error('[TxSettler] Error:', err.message)
   }
 }
+// __NEXUM_MAINNET_M2__ 20260923-214326

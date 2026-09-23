@@ -368,8 +368,10 @@ export function cctpBlockchainFor(key: string): string | null {
     unichain: 'UNI-SEPOLIA', monad: 'MONAD-TESTNET',
   }
   const mainnet: Record<string, string> = {
-    arc: 'ARC-TESTNET', base: 'BASE', ethereum: 'ETH',
+    arc: 'ARC', base: 'BASE', ethereum: 'ETH',
     arbitrum: 'ARB', polygon: 'MATIC',
+    optimism: 'OP', avalanche: 'AVAX',
+    unichain: 'UNI', monad: 'MONAD',
   }
   const isMainnet = (process.env.CCTP_ENV ?? 'testnet') === 'mainnet'
   return (isMainnet ? mainnet : testnet)[key] ?? null
@@ -533,3 +535,4 @@ export async function createTypedDataSignature(params: {
     })
   return { challengeId: String(data.challengeId) }
 }
+// __NEXUM_MAINNET_M2__ 20260923-214326

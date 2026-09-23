@@ -6,7 +6,7 @@ import { getCachedRates } from '../services/rateOracle'
 
 const router = Router()
 
-const ARC_RPC   = process.env.ARC_RPC_URL ?? 'https://rpc.testnet.arc.network'
+const ARC_RPC   = process.env.ARC_RPC_URL ?? ((process.env.CCTP_ENV ?? 'testnet') === 'mainnet' ? 'https://rpc.mainnet.arc.io' : 'https://rpc.testnet.arc.network')
 const USDC_ADDR = '0x3600000000000000000000000000000000000000' as const
 const EURC_ADDR = '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as const
 
@@ -19,7 +19,8 @@ const ERC20_ABI = [{
 const arcClient = createPublicClient({
   transport: http(ARC_RPC),
   chain: {
-    id: 5042002, name: 'Arc Testnet',
+    id: Number(process.env.ARC_CHAIN_ID ?? ((process.env.CCTP_ENV ?? 'testnet') === 'mainnet' ? 5042 : 5042002)),
+    name: (process.env.CCTP_ENV ?? 'testnet') === 'mainnet' ? 'Arc' : 'Arc Testnet',
     nativeCurrency: { name: 'ARC', symbol: 'ARC', decimals: 18 },
     rpcUrls: { default: { http: [ARC_RPC] } },
   } as any,
@@ -149,3 +150,4 @@ router.get('/:address', async (req, res) => {
 
 export default router
 // __NEXUM_DASH_CLEANUP_B__ 20260910-132813
+// __NEXUM_MAINNET_M2__ 20260923-214326
