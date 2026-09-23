@@ -60,3 +60,9 @@ coverage/
 .nexum-v2-*-backups/
 .nexum-v2-*.applied
 nexum-v2-*.sh
+
+# Nexum deploy/fix scripts + artifacts (run locally, never committed)
+nexum-*.sh
+*.deleted.*
+*.b64
+*.mjs.probe
