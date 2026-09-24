@@ -66,3 +66,6 @@ nexum-*.sh
 *.deleted.*
 *.b64
 *.mjs.probe
+.nexum-*
+.nexum-*-backups/
+*.applied
