@@ -1,120 +1,108 @@
-# Nexum — Stablecoin-Powered Cross-Border Payments on Arc
+# Nexum - Stablecoin-Powered Cross-Border Payments on Arc
 
-Nexum is a decentralised foreign exchange and cross-border payments platform built on the Arc blockchain. It lets individuals and businesses anywhere in the world move money across borders using USDC stablecoins as the settlement layer, with real local currency amounts on both ends. USDC can be bridged in and out of Arc across a growing set of chains, so funds are never trapped on a single network. Every transaction is settled on-chain, transparent, and traceable on ArcScan.
+Nexum is a global foreign-exchange and cross-border payments platform built on the Arc blockchain, settled entirely in USDC. It lets individuals and businesses anywhere in the world move money across borders with real local-currency amounts on both ends, without the delays, opacity, and cost of traditional banking rails. Every transaction settles on-chain, transparently, and is traceable on the Arc explorer.
+
+---
+
+## Vision
+
+A world where sending money across a border is as fast, cheap, and certain as sending a message - where the currency you hold and the currency someone else needs are never a barrier, and where no one has to trust a middleman to hold their funds along the way.
+
+## Mission
+
+To give people and businesses in every market direct access to fair, transparent, stablecoin-settled payments and FX. Nexum replaces slow correspondent banking and siloed regional rails with an open USDC settlement layer, peer-to-peer liquidity at market rates, and on-chain escrow that protects both sides of every trade - so value moves in seconds, at real rates, with a verifiable record.
 
 ---
 
 ## What Problem Does Nexum Solve?
 
-Cross-border payments are slow, expensive, and opaque almost everywhere. Traditional banks charge high fees, take days to settle, and demand extensive documentation. Regional payment rails are fast but siloed within borders. Nexum bridges this gap by using USDC as a neutral settlement currency between any two local currencies, with peer-to-peer trading at market rates and a built-in escrow system that protects both parties.
+Cross-border payments are slow, expensive, and opaque almost everywhere. Banks charge high fees, take days to settle, and demand heavy documentation. Regional payment rails are fast but trapped within borders. Nexum bridges that gap by using USDC as a neutral settlement currency between any two local currencies, with peer-to-peer trading at market rates and built-in escrow that protects both parties. Funds are non-custodial, held in the user's own Circle wallet, and every step is recorded on-chain.
 
 ---
 
-## How It Works, Phase by Phase
+## The Key Protocols
 
-### Phase 1 & 2, FX Trading
-The core of Nexum is a direct USDC exchange supporting 160+ currencies worldwide, with live rates sourced from a global feed. Every pair routes through USDC, so any local currency can reach any other. A currency only appears when its live rate is available; there is no hardcoded list to fall out of date. Exchange rates are sourced live with automatic fallback and database caching, so a feed outage never blocks a trade.
+### USDC Settlement Layer
+Every payment, trade, and transfer settles in USDC. Pricing spans 160+ global currencies drawn from a live rate feed with automatic failover and database caching, so a feed outage never blocks activity. A currency appears only when its live rate is available, so there is no stale hardcoded list. USDC is the neutral unit that lets any local currency reach any other.
 
-### Phase 3, Peer-to-Peer Marketplace
-The P2P marketplace lets users trade USDC directly with each other at agreed rates. A seller creates an offer specifying the amount, currency, and rate. A buyer accepts the offer on-chain, locking the USDC in the escrow smart contract. The buyer then sends the local currency payment off-chain (bank transfer or mobile money) and confirms, attaching a PDF receipt as proof. The seller confirms receipt and the smart contract automatically releases the USDC to the buyer. Both parties can communicate through a built-in trade chat that is automatically deleted once the trade completes.
+### Peer-to-Peer Marketplace with On-Chain Escrow
+Users trade USDC directly with each other at agreed rates. A maker locks USDC into the escrow smart contract; a taker accepts on-chain, sends the local-currency payment off-chain (bank transfer or mobile money), and confirms with proof. On confirmation the contract releases the USDC to the taker. If a taker accepts but never pays within the window, the offer returns to the marketplace automatically for someone else to take - funds stay safely escrowed the whole time. A built-in trade chat lets both sides communicate and is cleared once the trade completes.
 
-### Phase 4, User Profiles and Reputation
-Every account can create a unique username and public profile. Reputation is built automatically from completed trades, with tiers ranging from New to Elite. Verified status is granted to accounts with more than ten completed trades and no disputes. Profiles are searchable by username and show trade history, reputation tier, and verified badge.
+### Cross-Chain Bridge (Circle CCTP)
+USDC moves between Arc and every supported chain through Circle's Cross-Chain Transfer Protocol - a burn-and-mint bridge, not a wrapped-token bridge. USDC is burned on the source chain and native USDC is minted on the destination, with no third-party custody and no synthetic asset. Because a burn is irreversible until its mint completes, every bridge is recorded before anything is signed and each stage is persisted as it happens; an interrupted transfer is never lost, and a reconciler tracks anything still outstanding against the real on-chain record.
 
-### Phase 5, Infrastructure and Rate Oracle
-A multi-source rate oracle fetches live exchange rates with automatic failover. Rates are cached in the database and served instantly to the frontend. The backend runs background jobs to refresh rates on a schedule. All rate failures are handled gracefully with database fallback.
+### Fiat On/Off-Ramp
+Users move between bank money and USDC directly. Fiat deposits are converted to USDC that lands in the user's own Circle wallet, and USDC can be withdrawn back to a bank account. Corridors are data-driven, so new currencies and rails can be added as they become available without code changes. KYC is handled by the ramp provider, so Nexum never holds sensitive personal documents.
 
-### Phase 6, Business Treasury
-Business accounts get a dedicated treasury dashboard showing their portfolio in both crypto and local currency equivalents. The treasury supports automatic conversion rules, for example converting USDC to a local currency when balances exceed a threshold. Payroll batches let businesses pay multiple recipients in a single operation, each receiving a unique Memo reference for reconciliation.
+### Multi-Chain Send
+Users send USDC to any address on any chain their wallet holds funds on. Settlement is judged by the real on-chain receipt on that chain - never assumed - and each transfer links to that chain's own block explorer, so confirmation is always verifiable.
 
-### Phase 7, Admin Dashboard
-A secure two-factor admin panel accessible only to registered admins. Super admins can create sub-admin accounts with granular permissions covering disputes, offers, users, analytics, treasury, and audit logs. Every admin action is logged for audit purposes. Sub-admins only see the sections they have been granted access to.
+### Invoices and Settlement
+Businesses generate invoices with unique references and share payment links. The payer opens the link and settles in USDC, with local-currency invoices converted at live rates before payment; payments route through the vault so the platform fee is applied at source. A settlement reports view aggregates payments and conversions into a CSV for accounting.
 
-### Phase 8, Trade Settlement and Invoices
-Businesses can generate invoices with unique Memo references (e.g. NEX-20260627-A3X2) and share payment links with their clients. The payer opens the link, signs in or pays with their wallet, and settles in USDC, with local currency invoices automatically converted at live rates before payment. A settlement reports page aggregates all payments, invoices, and FX conversions into a downloadable CSV for accounting.
+### Payroll
+Businesses pay many recipients in a single batch, each payment carrying a unique reference for reconciliation. Disbursement is funded once into a platform-operated payout wallet, from which the batch is paid out - the payroll dashboard shows totals, recipients paid, in-progress batches, and an exportable per-recipient ledger.
 
-### Phase 9, Dispute Resolution System
-Three dispute flows are handled automatically:
+### Platform Fees
+A uniform, inclusive 0.1% fee is collected on-chain, only on successful P2P releases and invoice payments (cancellations and reopened trades are never charged). Fee accounting lives in the vault with per-protocol balances, and withdrawals are bounded so they can never touch user escrow. A super-admin-only dashboard shows collected, withdrawn, and available fees per protocol.
 
-**Flow 1, buyer does not send:** If the buyer accepts an offer but never confirms sending the local currency within the agreed window, the platform automatically cancels the trade and returns USDC to the seller. No human intervention needed.
+### Profiles and Reputation
+Every account has a unique username and public profile. Reputation builds automatically from completed trades, with tiers and a verified badge for established, dispute-free traders. Private profile details are owner-only and stripped server-side from public views.
 
-**Flow 2, buyer claims to have sent but seller disputes:** After the seller's response window elapses, the seller can raise a dispute stating they did not receive payment. An admin reviews the evidence and resolves, either releasing USDC to the buyer or refunding the seller.
-
-**Flow 3, buyer sends but seller goes silent:** After the seller's response window elapses without any action, the buyer can raise a dispute. If neither party raises a dispute and the seller remains silent for 24 hours, USDC is automatically released to the buyer. If a dispute is raised by either party, an admin must resolve it; there is no automatic release.
-
-### Phase 10, Dispute Chat and Evidence Review
-When a dispute is raised, it appears on the admin dashboard. An admin clicks "Accept dispute, become judge" to take ownership. The moment they accept, both the seller and buyer see the admin's name on their offer page along with a chat interface. The admin can message both parties from a single interface, request bank statements, and review uploaded PDF evidence. Bank statements uploaded by either party are visible only to the admin for privacy. Once the admin reaches a verdict, they click either "Release USDC to buyer" or "Refund USDC to seller" and the smart contract executes immediately. All messages are archived for super admin audit.
-
-### Phase 11, Cross-Chain Bridge (Circle CCTP)
-USDC can be moved between Arc and every supported chain using Circle's Cross-Chain Transfer Protocol. This is a burn-and-mint bridge, not a wrapped-token bridge: USDC is burned on the source chain and native USDC is minted on the destination, so there is no third-party custody and no synthetic asset. The user signs both transactions from their own wallet.
-
-Because a burn is irreversible until the matching mint completes, every bridge is recorded in the database *before* anything is signed, and each stage is persisted as it happens. A transfer interrupted between burn and mint is never lost: the burn transaction hash is stored, the mint remains claimable by anyone, and a reconciler tracks anything still outstanding. The UI distinguishes clearly between a transfer cancelled at the wallet prompt (nothing moved), one that failed before the burn (nothing moved, safe to retry), and one still in flight (funds burned, mint owed).
-
-### Phase 12, Unified Balance (Circle Gateway)
-Circle Gateway gives each user a single USDC balance that is spendable on any supported chain. Funds are deposited once, and after they reach finality on the deposit chain they can be spent instantly, in under a second, on any other chain without bridging first. Arc finalises in roughly half a second, which makes it a natural home for the balance.
-
-This powers cross-chain sends: a same-chain transfer goes directly from the wallet, while a cross-chain transfer draws on the unified balance. The user picks a destination and the app chooses the route.
-
-### Phase 13, AI Dispute Triage
-Admins handling a dispute can generate a neutral, structured summary of the case: a timeline, each party's position, where their accounts diverge, what the on-chain record shows, what the uploaded evidence contains, and what is missing. It reads the trade data, the chat transcript and the PDF evidence.
-
-It is strictly advisory. It never decides, never messages users and never touches escrow; the human admin still rules on every dispute. Because the chat and evidence are user-supplied, the assistant treats them as untrusted data and reports any embedded attempt to instruct it rather than following it, surfacing manipulation attempts to the admin instead of acting on them.
-
----
-
-## Key Features Summary
-
-**For individuals:**
-- Trade between USDC and 160+ currencies worldwide at live rates
-- Bridge native USDC across Arc, Ethereum, Base, Arbitrum, Polygon, Optimism, Avalanche, Unichain and Monad
-- Hold one unified USDC balance spendable across chains
-- Trade peer-to-peer with anyone, anywhere, at agreed rates
-- Full escrow protection, funds locked on-chain until both parties confirm
-- Built-in trade chat with PDF payment proof and automatic cleanup after completion
-- Public profile with verified badge and reputation tier
-
-**For businesses:**
-- Portfolio dashboard showing holdings in local currency equivalents
-- Treasury automation rules for currency conversion
-- Batch payroll with unique Memo references per recipient
-- Invoice generation with shareable payment links
-- Settlement reports with CSV export for accounting
-
-**For platform integrity:**
-- Smart contract escrow, no counterparty risk
-- Automatic dispute resolution for clear-cut cases
-- Admin-mediated resolution with evidence chat for complex cases
-- AI case summaries to speed up admin triage, advisory only
-- Duty rosters so disputes are only routed to admins who are on shift
-- Full on-chain transaction history on ArcScan
-- Every admin action logged for audit
+### Dispute Resolution
+Clear-cut cases resolve automatically: a taker who never pays has the offer returned to the marketplace; prolonged maker silence after payment auto-releases to the taker. Contested cases go to an admin who accepts the case as judge, chats with both parties, reviews uploaded evidence privately, and issues a verdict the smart contract executes. An AI triage assistant can produce a neutral, structured case summary to speed review - it is strictly advisory, never decides, never messages users, never touches escrow, and treats user-supplied chat and evidence as untrusted data.
 
 ---
 
 ## Accounts and Wallets
 
-Nexum uses Circle programmable wallets. A user signs in with Google or email and a secure Circle wallet is provisioned for them on verification — no seed phrase to manage and no browser extension required. Users who prefer self-custody can connect an external wallet instead. Public invoice payers can pay without creating an account.
+Nexum uses Circle programmable wallets. A user signs in with Google or email and a secure Circle wallet is provisioned on verification - no seed phrase to manage and no browser extension required. Funds are non-custodial: the user controls their wallet, and Nexum never takes custody of balances. Public invoice payers can pay without creating an account.
+
+---
+
+## Key Features at a Glance
+
+**For individuals**
+- Move between 160+ currencies and USDC at live rates
+- On/off-ramp between bank money and USDC
+- Bridge native USDC across Arc, Ethereum, Base, Arbitrum, Polygon, Optimism, Avalanche, Unichain and Monad
+- Send USDC to any address on any supported chain
+- Trade peer-to-peer at agreed rates with full on-chain escrow protection
+- Built-in trade chat with payment proof and automatic cleanup
+- Public profile with reputation tier and verified badge
+
+**For businesses**
+- Payroll dashboard with batch payouts and exportable recipient ledger
+- Invoice generation with shareable payment links and settlement reports
+- Non-custodial treasury in USDC with live local-currency equivalents
+
+**For platform integrity**
+- Smart-contract escrow - no counterparty custody
+- Automatic resolution for clear-cut disputes, admin-mediated resolution for the rest
+- Advisory AI case summaries to speed admin triage
+- Uniform on-chain fee accounting that can never touch user funds
+- Full on-chain history on the Arc explorer, every admin action logged
 
 ---
 
 ## Live Platform
 
 - **Frontend:** [nexumpay.xyz](https://nexumpay.xyz)
-- **API:** [nexum-api.onrender.com](https://nexum-api.onrender.com)
-- **Home chain:** Arc Testnet (Chain ID 5042002)
-- **Bridged chains:** Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, Polygon Amoy, OP Sepolia, Avalanche Fuji, Unichain Sepolia, Monad Testnet
-- **Explorer:** [testnet.arcscan.app](https://testnet.arcscan.app)
+- **Home chain:** Arc (Chain ID 5042)
+- **Bridged chains:** Ethereum, Base, Arbitrum, Polygon, Optimism, Avalanche, Unichain, Monad
+- **Settlement:** USDC on Arc, bridged with Circle CCTP
+- **Explorer:** [explorer.arc.io](https://explorer.arc.io)
 
 ---
 
 ## Getting Started
 
-1. Visit [nexumpay.xyz](https://nexumpay.xyz) and sign in with Google or email to get your Circle wallet (or connect an external wallet if you prefer self-custody)
-2. Get testnet USDC from the Arc faucet if you need funds to trade
+1. Visit [nexumpay.xyz](https://nexumpay.xyz) and sign in with Google or email to get your Circle wallet
+2. Fund your wallet with USDC, or use the on-ramp to convert from bank money
 3. Create your profile with a unique username
-4. Start trading, bridging USDC from another chain, or creating invoices
+4. Start trading, sending, bridging, on/off-ramping, or creating invoices
 
-For businesses, reach out to the platform admin to set up a treasury account with custom conversion rules and payroll access.
+For businesses, reach out to the platform admin to set up payroll and treasury access.
 
 ---
 
@@ -142,4 +130,4 @@ See `.env.example` and `.env.local.example` for the full list of required enviro
 
 ---
 
-*Built on Arc Testnet · Powered by USDC · Bridged with Circle CCTP and Gateway · Settled on-chain*
+*Built on Arc - Powered by USDC - Bridged with Circle CCTP - Settled on-chain*
